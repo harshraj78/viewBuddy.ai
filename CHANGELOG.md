@@ -23,6 +23,7 @@ The format follows Keep a Changelog principles, and this project aims to use sem
 - React/Vite video interview room scaffold with camera/microphone permission flow and answer recording controls.
 - Seven-screen product flow for landing, setup, waiting room, live interview, coding round, system design, and feedback report.
 - Product flow documentation covering UX rules and core product modules.
+- Browser-based voice MVP with speech-to-text transcript capture and text-to-speech interviewer playback.
 - Live interview session API contracts for creating sessions, requesting questions, and submitting transcripts.
 - Dockerfiles and Docker Compose foundation.
 

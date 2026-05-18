@@ -80,6 +80,13 @@ Rules:
 
 The interview screen must stay minimal and pressure-realistic.
 
+MVP voice behavior:
+
+- Browser text-to-speech reads the current interviewer question.
+- Browser speech recognition captures candidate answers into the transcript where supported.
+- Typed transcript remains the fallback.
+- OpenAI Realtime API and LiveKit are the production target after the local MVP flow is stable.
+
 ## Screen 5 - Coding Round
 
 Goal: separate LeetCode-style experience from conversation mode.
@@ -144,6 +151,12 @@ Sections:
 7. Voice Engine: STT, TTS, interruptions, latency optimization.
 8. Reporting Engine: feedback report, replay, transcript, improvement roadmap.
 
+Current MVP voice layer:
+
+- Browser Web Speech API for local speech-to-text.
+- Browser SpeechSynthesis for local interviewer text-to-speech.
+- This keeps the MVP fast and demoable before adding paid realtime infrastructure.
+
 ## Recommended Scalable Stack
 
 - Frontend: Next.js, TailwindCSS, shadcn/ui.
@@ -169,4 +182,3 @@ Build:
 - Realistic interview pacing.
 - Fast voice interaction.
 - Separate modes for conversation, coding, system design, and report.
-

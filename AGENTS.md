@@ -14,6 +14,7 @@ This file tracks project progress, architecture decisions, learning notes, bugs,
 - React/Vite video interview room scaffold added.
 - Live interview API contracts added for session creation, next question, and transcript submission.
 - Candidate-facing frontend refactored into seven product screens: landing, setup, waiting room, live interview, coding round, system design round, and feedback report.
+- Browser voice MVP added with speech-to-text transcript capture and text-to-speech interviewer question playback.
 - Product vision defined.
 - High-level architecture documented.
 - Database and API design drafted.
@@ -59,6 +60,8 @@ MVP must be video-based. Streamlit can remain useful for quick internal dashboar
 - Created React/Vite video interview room scaffold with camera/microphone capture and recording controls.
 - Refactored React frontend to match the actual screen flow and keep analytics out of the live interview screen.
 - Created `docs/PRODUCT_FLOW.md` to lock the UX and module architecture.
+- Added browser speech recognition support for live answer transcripts with typed fallback.
+- Added browser speech synthesis support so interviewer questions can be spoken aloud.
 - Created live interview API endpoints:
   - `POST /api/v1/live-interviews/sessions`
   - `GET /api/v1/live-interviews/sessions/{session_id}`
@@ -74,6 +77,7 @@ MVP must be video-based. Streamlit can remain useful for quick internal dashboar
 - Add real speech-to-text provider.
 - Add real text-to-speech or browser speech synthesis.
 - Add WebSocket endpoint for live interview events.
+- Replace browser-only voice with OpenAI Realtime API and/or LiveKit when moving from MVP to production realtime.
 - Replace coding round placeholder with Monaco editor.
 - Replace system design placeholder with whiteboard canvas.
 - Connect feedback report to real evaluation output.

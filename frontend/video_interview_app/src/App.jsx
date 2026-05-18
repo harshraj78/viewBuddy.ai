@@ -43,13 +43,16 @@ const screenOrder = [
 function App() {
   const videoRef = useRef(null);
   const mediaRecorderRef = useRef(null);
+  const recognitionRef = useRef(null);
   const [screen, setScreen] = useState("landing");
   const [stream, setStream] = useState(null);
   const [session, setSession] = useState(null);
   const [question, setQuestion] = useState(null);
   const [answerText, setAnswerText] = useState("");
   const [isRecording, setIsRecording] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const [transcriptOpen, setTranscriptOpen] = useState(false);
+  const [voiceMessage, setVoiceMessage] = useState("");
   const [status, setStatus] = useState("Ready");
   const [error, setError] = useState("");
   const [setup, setSetup] = useState({
@@ -66,6 +69,12 @@ function App() {
       videoRef.current.srcObject = stream;
     }
   }, [stream, screen]);
+
+  useEffect(() => {
+    if (screen === "live" && question?.question_text) {
+      speakQuestion(question.question_text);
+    }
+  }, [question, screen]);
 
   const stepIndex = screenOrder.indexOf(screen);
   const interviewerTone = useMemo(() => {
@@ -115,7 +124,7 @@ function App() {
       setSession(createdSession);
       setStatus("Interview started");
       await requestNextQuestion(createdSession.session_id);
-      setScreen("live");
+      setScreen(setup.interviewType === "System Design" ? "system" : "live");
     } catch (caughtError) {
       setError(caughtError.message);
       setStatus("Ready");
@@ -151,7 +160,9 @@ function App() {
 
     if (isRecording) {
       mediaRecorderRef.current?.stop();
+      recognitionRef.current?.stop();
       setIsRecording(false);
+      setIsListening(false);
       setStatus("Recording saved locally");
       return;
     }
@@ -159,8 +170,61 @@ function App() {
     const recorder = new MediaRecorder(stream);
     mediaRecorderRef.current = recorder;
     recorder.start();
+    startSpeechRecognition();
     setIsRecording(true);
     setStatus("Recording answer");
+  }
+
+  function startSpeechRecognition() {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setVoiceMessage("Speech-to-text is not supported in this browser. Type the transcript.");
+      setTranscriptOpen(true);
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = "en-IN";
+    recognition.onstart = () => {
+      setIsListening(true);
+      setVoiceMessage("Listening...");
+      setTranscriptOpen(true);
+    };
+    recognition.onresult = (event) => {
+      const transcript = Array.from(event.results)
+        .map((result) => result[0].transcript)
+        .join(" ")
+        .trim();
+      setAnswerText(transcript);
+    };
+    recognition.onerror = () => {
+      setVoiceMessage("Speech recognition paused. You can continue by typing.");
+      setIsListening(false);
+    };
+    recognition.onend = () => {
+      setIsListening(false);
+      if (isRecording) setVoiceMessage("Speech recognition stopped.");
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+  }
+
+  function speakQuestion(text = question?.question_text) {
+    if (!text || !window.speechSynthesis) {
+      setVoiceMessage("Text-to-speech is not supported in this browser.");
+      return;
+    }
+
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = "en-IN";
+    utterance.rate = setup.personality === "FAANG pressure" ? 1.06 : 0.96;
+    utterance.pitch = setup.personality === "Friendly" ? 1.04 : 0.94;
+    window.speechSynthesis.speak(utterance);
+    setVoiceMessage("Interviewer question is playing.");
   }
 
   async function submitTranscript() {
@@ -227,12 +291,17 @@ function App() {
           answerText={answerText}
           transcriptOpen={transcriptOpen}
           isRecording={isRecording}
+          isListening={isListening}
+          voiceMessage={voiceMessage}
           error={error}
           onToggleTranscript={() => setTranscriptOpen((current) => !current)}
           onAnswerText={setAnswerText}
           onToggleRecording={toggleRecording}
+          onSpeakQuestion={() => speakQuestion()}
           onSubmitTranscript={submitTranscript}
           onNextQuestion={() => requestNextQuestion()}
+          onCodingRound={() => setScreen("coding")}
+          onSystemRound={() => setScreen("system")}
           onLeave={() => setScreen("report")}
         />
       ) : null}
@@ -428,12 +497,17 @@ function LiveInterview({
   answerText,
   transcriptOpen,
   isRecording,
+  isListening,
+  voiceMessage,
   error,
   onToggleTranscript,
   onAnswerText,
   onToggleRecording,
+  onSpeakQuestion,
   onSubmitTranscript,
   onNextQuestion,
+  onCodingRound,
+  onSystemRound,
   onLeave,
 }) {
   return (
@@ -446,6 +520,13 @@ function LiveInterview({
       <div className="question-card">
         <p className="label">Current question</p>
         <h2>{question?.question_text ?? "Interview complete. You can leave for feedback."}</h2>
+        <div className="question-actions">
+          <button className="ghost compact" onClick={onSpeakQuestion}>
+            <Volume2 size={16} />
+            Repeat question
+          </button>
+          {voiceMessage ? <span>{voiceMessage}</span> : null}
+        </div>
       </div>
 
       <details className="transcript" open={transcriptOpen} onToggle={onToggleTranscript}>
@@ -466,7 +547,7 @@ function LiveInterview({
       <div className="live-controls">
         <button className="secondary icon-button" onClick={onToggleRecording}>
           {isRecording ? <CircleStop size={18} /> : <Mic size={18} />}
-          {isRecording ? "Stop" : "Mic"}
+          {isListening ? "Listening" : isRecording ? "Stop" : "Mic"}
         </button>
         <button className="secondary icon-button">
           <Camera size={18} />
@@ -479,6 +560,14 @@ function LiveInterview({
         <button className="secondary icon-button" onClick={onNextQuestion}>
           <Play size={18} />
           Next
+        </button>
+        <button className="ghost icon-button" onClick={onCodingRound}>
+          <Code2 size={18} />
+          Code
+        </button>
+        <button className="ghost icon-button" onClick={onSystemRound}>
+          <LayoutTemplate size={18} />
+          Design
         </button>
         <button className="danger icon-button" onClick={onLeave}>
           Leave
@@ -627,4 +716,3 @@ function ReportCard({ title, items }) {
 }
 
 createRoot(document.getElementById("root")).render(<App />);
-

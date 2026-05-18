@@ -552,6 +552,7 @@ Important MVP direction:
 - The candidate-facing MVP should become a live video interview room.
 - React/Next.js is preferred for camera, microphone, recording, WebSocket state, and a polished interview experience.
 - Backend APIs should support live sessions, transcripts, evaluation, and follow-up questions.
+- Current voice MVP uses browser speech recognition and speech synthesis; production realtime should move to OpenAI Realtime API and LiveKit.
 
 Quality checks:
 
