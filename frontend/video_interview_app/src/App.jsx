@@ -16,7 +16,7 @@ import {
   Video,
   Volume2,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 
 import "./styles.css";
