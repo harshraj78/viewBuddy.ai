@@ -35,6 +35,9 @@ class Settings(BaseSettings):
     max_resume_file_mb: int = 10
 
     llm_provider: str = "openai"
+    openai_api_key: str | None = None
+    openai_model: str = "gpt-4.1-mini"
+    ai_evaluation_mode: str = "fallback"
     llm_request_timeout_seconds: int = 60
     llm_max_retries: int = 3
 

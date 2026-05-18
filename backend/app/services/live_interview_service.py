@@ -3,6 +3,7 @@ from uuid import UUID, uuid4
 
 from fastapi import status
 
+from app.ai.evaluators import interview_answer_evaluator
 from app.core.errors import AppError
 from app.schemas.live_interview import (
     AnswerTranscriptRequest,
@@ -13,7 +14,6 @@ from app.schemas.live_interview import (
     LiveInterviewStatus,
     MediaRequirement,
     NextQuestionResponse,
-    ReportSection,
     StartLiveInterviewRequest,
     TranscriptReplayItem,
 )
@@ -91,36 +91,14 @@ class LiveInterviewService:
             next_action="request_next_question",
         )
 
-    def generate_report(self, session_id: UUID) -> FeedbackReportResponse:
+    async def generate_report(self, session_id: UUID) -> FeedbackReportResponse:
         session = self._get_session(session_id)
         replay = self._build_replay(session)
-        combined_transcript = " ".join(item.transcript for item in replay)
-        word_count = len(combined_transcript.split())
-        answered_count = len(replay)
-
-        communication = self._score_communication(combined_transcript, answered_count)
-        technical = self._score_technical(combined_transcript, answered_count)
-        behavioral = self._score_behavioral(combined_transcript)
-        overall_score = round(
-            (communication.score * 0.35) + (technical.score * 0.45) + (behavioral.score * 0.20)
-        )
-
-        suggestions = [
-            "Use a clear structure: context, approach, tradeoffs, result.",
-            "Add concrete metrics or implementation details when explaining projects.",
-            "Mention failure modes and production safeguards for AI systems.",
-        ]
-        if word_count < 80:
-            suggestions.insert(0, "Give fuller answers; most responses are currently too short.")
-
-        return FeedbackReportResponse(
+        return await interview_answer_evaluator.evaluate(
             session_id=session.session_id,
-            overall_score=overall_score,
-            communication=communication,
-            technical=technical,
-            behavioral=behavioral,
+            target_role=session.request.target_role,
+            difficulty=session.request.difficulty,
             replay=replay,
-            improvement_suggestions=suggestions,
         )
 
     def _get_session(self, session_id: UUID) -> LiveInterviewSession:
@@ -211,79 +189,6 @@ class LiveInterviewService:
                 )
             )
         return replay
-
-    def _score_communication(self, transcript: str, answered_count: int) -> ReportSection:
-        filler_words = ["um", "uh", "like", "basically", "actually", "you know"]
-        lower_transcript = transcript.lower()
-        filler_count = sum(lower_transcript.count(word) for word in filler_words)
-        word_count = len(transcript.split())
-        score = min(90, 45 + answered_count * 10 + min(word_count // 20, 20) - filler_count * 2)
-        score = max(score, 20 if answered_count else 0)
-
-        return ReportSection(
-            score=score,
-            strengths=[
-                "Maintained interview flow with submitted responses.",
-                "Provided enough signal for a first-pass communication review.",
-            ],
-            improvements=[
-                "Reduce filler words and long pauses.",
-                "Answer in a structured way so the interviewer can follow your thinking.",
-            ],
-        )
-
-    def _score_technical(self, transcript: str, answered_count: int) -> ReportSection:
-        technical_signals = [
-            "api",
-            "database",
-            "postgres",
-            "redis",
-            "queue",
-            "latency",
-            "scal",
-            "test",
-            "deploy",
-            "model",
-            "prompt",
-            "rag",
-            "vector",
-            "tradeoff",
-        ]
-        lower_transcript = transcript.lower()
-        signal_hits = sum(1 for signal in technical_signals if signal in lower_transcript)
-        score = min(95, 35 + answered_count * 8 + signal_hits * 5)
-
-        return ReportSection(
-            score=score,
-            strengths=[
-                "Touched relevant engineering concepts."
-                if signal_hits
-                else "Completed at least one technical response.",
-            ],
-            improvements=[
-                "Discuss concrete architecture components, data flow, and failure handling.",
-                "Use tradeoffs instead of only listing tools.",
-            ],
-        )
-
-    def _score_behavioral(self, transcript: str) -> ReportSection:
-        lower_transcript = transcript.lower()
-        star_signals = ["situation", "task", "action", "result", "learned", "impact"]
-        signal_hits = sum(1 for signal in star_signals if signal in lower_transcript)
-        score = min(90, 45 + signal_hits * 8)
-
-        return ReportSection(
-            score=score,
-            strengths=[
-                "Shows potential for structured storytelling."
-                if signal_hits
-                else "Behavioral signal is limited but can improve quickly.",
-            ],
-            improvements=[
-                "Use STAR: situation, task, action, result.",
-                "Add what you learned and how it changed your next decision.",
-            ],
-        )
 
 
 live_interview_service = LiveInterviewService()

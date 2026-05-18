@@ -146,6 +146,7 @@ MVP behavior:
 - Scores are deterministic for now so the product is demoable without an LLM key.
 - The evaluator returns communication, technical, behavioral, replay, and improvement sections.
 - Production version should replace the deterministic evaluator with versioned LLM rubric evaluation.
+- Set `AI_EVALUATION_MODE=llm` and configure `OPENAI_API_KEY` to route report generation through the LLM evaluator.
 
 ## Core Product Modules
 

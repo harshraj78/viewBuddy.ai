@@ -16,6 +16,7 @@ This file tracks project progress, architecture decisions, learning notes, bugs,
 - Candidate-facing frontend refactored into seven product screens: landing, setup, waiting room, live interview, coding round, system design round, and feedback report.
 - Browser voice MVP added with speech-to-text transcript capture and text-to-speech interviewer question playback.
 - MVP feedback report endpoint added and connected to submitted live interview transcripts.
+- AI evaluator abstraction added with OpenAI-compatible JSON evaluation path and deterministic fallback.
 - Product vision defined.
 - High-level architecture documented.
 - Database and API design drafted.
@@ -65,6 +66,8 @@ MVP must be video-based. Streamlit can remain useful for quick internal dashboar
 - Added browser speech synthesis support so interviewer questions can be spoken aloud.
 - Added deterministic MVP evaluation report with communication, technical, behavioral, replay, and improvement sections.
 - Connected frontend feedback report screen to backend-generated report data.
+- Added prompt versioning constants for answer evaluation.
+- Added OpenAI provider boundary for future LLM scoring.
 - Created live interview API endpoints:
   - `POST /api/v1/live-interviews/sessions`
   - `GET /api/v1/live-interviews/sessions/{session_id}`
@@ -85,6 +88,7 @@ MVP must be video-based. Streamlit can remain useful for quick internal dashboar
 - Replace system design placeholder with whiteboard canvas.
 - Connect feedback report to real evaluation output.
 - Replace deterministic MVP evaluator with LLM rubric evaluation once provider keys are configured.
+- Add LLM call logging for provider, model, latency, token usage, and errors.
 - Implement first LLM provider abstraction.
 - Implement question generation and answer evaluation endpoints.
 - Build the production candidate-facing video interview MVP.

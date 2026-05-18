@@ -102,3 +102,5 @@ class FeedbackReportResponse(BaseModel):
     behavioral: ReportSection
     replay: list[TranscriptReplayItem]
     improvement_suggestions: list[str]
+    evaluator: str
+    prompt_version: str

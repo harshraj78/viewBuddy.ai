@@ -695,6 +695,11 @@ function FeedbackReport({ report, error, onRestart }) {
               ? `Overall score: ${report.overall_score}/100`
               : "Feedback belongs here, after the pressure is over."}
           </h2>
+          {report ? (
+            <p>
+              Evaluator: {report.evaluator} · Prompt: {report.prompt_version}
+            </p>
+          ) : null}
         </div>
       </div>
 

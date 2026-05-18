@@ -554,6 +554,7 @@ Important MVP direction:
 - Backend APIs should support live sessions, transcripts, evaluation, and follow-up questions.
 - Current voice MVP uses browser speech recognition and speech synthesis; production realtime should move to OpenAI Realtime API and LiveKit.
 - Current feedback MVP generates a deterministic scorecard from submitted transcripts; production evaluation should use versioned LLM rubrics.
+- AI evaluation can run in fallback mode locally or LLM mode with `AI_EVALUATION_MODE=llm` and `OPENAI_API_KEY`.
 
 Quality checks:
 

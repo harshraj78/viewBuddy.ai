@@ -104,6 +104,13 @@ the rubric. Be fair, specific, and consistent. Do not reward vague claims.
 Do not penalize grammar unless it reduces clarity. Return only valid JSON.
 ```
 
+Current implementation:
+
+- Prompt version: `answer-evaluation-v1`.
+- Fallback version: `deterministic-v1`.
+- `AI_EVALUATION_MODE=fallback` keeps local demos working without API keys.
+- `AI_EVALUATION_MODE=llm` attempts OpenAI JSON evaluation and falls back safely if the provider is unavailable.
+
 User:
 
 ```text
@@ -208,4 +215,3 @@ Consistency comes from:
 - Summarize long context before evaluation.
 - Cap answer length.
 - Track token usage per user and endpoint.
-

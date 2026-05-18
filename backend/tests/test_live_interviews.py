@@ -47,6 +47,8 @@ def test_live_interview_session_flow_accepts_transcript() -> None:
     assert report_response.status_code == 200
     report = report_response.json()
     assert report["overall_score"] > 0
+    assert report["evaluator"] == "fallback"
+    assert report["prompt_version"] == "deterministic-v1"
     assert report["communication"]["score"] > 0
     assert report["technical"]["score"] > 0
     assert report["replay"][0]["question_id"] == question["id"]

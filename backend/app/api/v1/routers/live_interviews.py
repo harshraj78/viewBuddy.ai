@@ -43,5 +43,5 @@ def submit_answer_transcript(
 
 
 @router.get("/sessions/{session_id}/report", response_model=FeedbackReportResponse)
-def get_feedback_report(session_id: UUID) -> FeedbackReportResponse:
-    return live_interview_service.generate_report(session_id)
+async def get_feedback_report(session_id: UUID) -> FeedbackReportResponse:
+    return await live_interview_service.generate_report(session_id)
