@@ -5,6 +5,7 @@ from fastapi import APIRouter, status
 from app.schemas.live_interview import (
     AnswerTranscriptRequest,
     AnswerTranscriptResponse,
+    FeedbackReportResponse,
     LiveInterviewSessionResponse,
     NextQuestionResponse,
     StartLiveInterviewRequest,
@@ -40,3 +41,7 @@ def submit_answer_transcript(
 ) -> AnswerTranscriptResponse:
     return live_interview_service.submit_transcript(session_id, request)
 
+
+@router.get("/sessions/{session_id}/report", response_model=FeedbackReportResponse)
+def get_feedback_report(session_id: UUID) -> FeedbackReportResponse:
+    return live_interview_service.generate_report(session_id)

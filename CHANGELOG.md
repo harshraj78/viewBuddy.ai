@@ -25,6 +25,7 @@ The format follows Keep a Changelog principles, and this project aims to use sem
 - Product flow documentation covering UX rules and core product modules.
 - Browser-based voice MVP with speech-to-text transcript capture and text-to-speech interviewer playback.
 - Live interview session API contracts for creating sessions, requesting questions, and submitting transcripts.
+- Feedback report API generated from submitted transcripts and connected to the frontend report screen.
 - Dockerfiles and Docker Compose foundation.
 
 ### Changed

@@ -49,6 +49,8 @@ function App() {
   const [session, setSession] = useState(null);
   const [question, setQuestion] = useState(null);
   const [answerText, setAnswerText] = useState("");
+  const [report, setReport] = useState(null);
+  const [reportError, setReportError] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [transcriptOpen, setTranscriptOpen] = useState(false);
@@ -247,10 +249,30 @@ function App() {
       if (!response.ok) throw new Error("Could not submit answer transcript");
       await response.json();
       setStatus("Answer queued for evaluation");
+      await loadReport();
     } catch (caughtError) {
       setError(caughtError.message);
       setStatus("Answering");
     }
+  }
+
+  async function loadReport() {
+    if (!session) return;
+    setReportError("");
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/live-interviews/sessions/${session.session_id}/report`,
+      );
+      if (!response.ok) throw new Error("Could not load feedback report");
+      setReport(await response.json());
+    } catch (caughtError) {
+      setReportError(caughtError.message);
+    }
+  }
+
+  async function enterReport() {
+    await loadReport();
+    setScreen("report");
   }
 
   return (
@@ -302,13 +324,25 @@ function App() {
           onNextQuestion={() => requestNextQuestion()}
           onCodingRound={() => setScreen("coding")}
           onSystemRound={() => setScreen("system")}
-          onLeave={() => setScreen("report")}
+          onLeave={enterReport}
         />
       ) : null}
 
       {screen === "coding" ? <CodingRound onBack={() => setScreen("live")} /> : null}
       {screen === "system" ? <SystemDesignRound onBack={() => setScreen("live")} /> : null}
-      {screen === "report" ? <FeedbackReport onRestart={() => setScreen("setup")} /> : null}
+      {screen === "report" ? (
+        <FeedbackReport
+          report={report}
+          error={reportError}
+          onRestart={() => {
+            setSession(null);
+            setQuestion(null);
+            setReport(null);
+            setAnswerText("");
+            setScreen("setup");
+          }}
+        />
+      ) : null}
     </main>
   );
 }
@@ -624,30 +658,65 @@ function SystemDesignRound({ onBack }) {
   );
 }
 
-function FeedbackReport({ onRestart }) {
+function FeedbackReport({ report, error, onRestart }) {
+  const communicationItems = report
+    ? [
+        `Score: ${report.communication.score}/100`,
+        ...report.communication.strengths,
+        ...report.communication.improvements,
+      ]
+    : ["Submit at least one answer transcript to generate communication feedback."];
+  const technicalItems = report
+    ? [
+        `Score: ${report.technical.score}/100`,
+        ...report.technical.strengths,
+        ...report.technical.improvements,
+      ]
+    : ["Technical feedback will appear after transcript evaluation."];
+  const behavioralItems = report
+    ? [
+        `Score: ${report.behavioral.score}/100`,
+        ...report.behavioral.strengths,
+        ...report.behavioral.improvements,
+      ]
+    : ["Behavioral feedback will appear after transcript evaluation."];
+  const replayItems = report?.replay?.length
+    ? report.replay.map((item) => `${item.question_text} — ${item.transcript}`)
+    : ["Recording placeholder", "Transcript replay appears after answer submission."];
+
   return (
     <section className="report">
       <div className="report-hero">
         <CheckCircle2 size={36} />
         <div>
           <p className="eyebrow">Interview complete</p>
-          <h2>Feedback belongs here, after the pressure is over.</h2>
+          <h2>
+            {report
+              ? `Overall score: ${report.overall_score}/100`
+              : "Feedback belongs here, after the pressure is over."}
+          </h2>
         </div>
       </div>
 
+      {error ? <p className="error">{error}</p> : null}
+
       <div className="report-grid">
-        <ReportCard title="Communication" items={["Confidence: improving", "Filler words: moderate", "Pace: steady"]} />
-        <ReportCard title="Technical" items={["Depth: solid", "Correctness: good", "Tradeoffs: add more detail"]} />
-        <ReportCard title="Behavioral" items={["Structure: use STAR", "Leadership: add examples", "Clarity: strong"]} />
-        <ReportCard title="Replay" items={["Recording placeholder", "Transcript placeholder", "Bookmarks coming next"]} />
+        <ReportCard title="Communication" items={communicationItems} />
+        <ReportCard title="Technical" items={technicalItems} />
+        <ReportCard title="Behavioral" items={behavioralItems} />
+        <ReportCard title="Replay" items={replayItems} />
       </div>
 
       <div className="improvement">
         <BarChart3 size={24} />
-        <p>
-          Next improvement: connect real evaluation scores, transcript replay, and a
-          personalized practice roadmap.
-        </p>
+        <div>
+          <h3>Improvement suggestions</h3>
+          {(report?.improvement_suggestions ?? [
+            "Complete one live answer to generate personalized suggestions.",
+          ]).map((item) => (
+            <p key={item}>{item}</p>
+          ))}
+        </div>
       </div>
       <button className="primary" onClick={onRestart}>Start another interview</button>
     </section>

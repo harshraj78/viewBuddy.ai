@@ -140,6 +140,13 @@ Sections:
 - Replay: recording and transcript.
 - Improvement suggestions.
 
+MVP behavior:
+
+- Report is generated from submitted answer transcripts.
+- Scores are deterministic for now so the product is demoable without an LLM key.
+- The evaluator returns communication, technical, behavioral, replay, and improvement sections.
+- Production version should replace the deterministic evaluator with versioned LLM rubric evaluation.
+
 ## Core Product Modules
 
 1. Authentication Service: signup, login, sessions.

@@ -39,4 +39,14 @@ def test_live_interview_session_flow_accepts_transcript() -> None:
         },
     )
     assert transcript_response.status_code == 200
-    assert transcript_response.json()["evaluation_status"] == "queued"
+    assert transcript_response.json()["evaluation_status"] == "ready_for_report"
+
+    report_response = client.get(
+        f"/api/v1/live-interviews/sessions/{session['session_id']}/report"
+    )
+    assert report_response.status_code == 200
+    report = report_response.json()
+    assert report["overall_score"] > 0
+    assert report["communication"]["score"] > 0
+    assert report["technical"]["score"] > 0
+    assert report["replay"][0]["question_id"] == question["id"]

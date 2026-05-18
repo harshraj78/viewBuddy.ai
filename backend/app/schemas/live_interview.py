@@ -80,3 +80,25 @@ class AnswerTranscriptResponse(BaseModel):
     evaluation_status: str
     next_action: str
 
+
+class ReportSection(BaseModel):
+    score: int = Field(ge=0, le=100)
+    strengths: list[str]
+    improvements: list[str]
+
+
+class TranscriptReplayItem(BaseModel):
+    question_id: UUID
+    question_text: str
+    transcript: str
+    duration_seconds: int
+
+
+class FeedbackReportResponse(BaseModel):
+    session_id: UUID
+    overall_score: int = Field(ge=0, le=100)
+    communication: ReportSection
+    technical: ReportSection
+    behavioral: ReportSection
+    replay: list[TranscriptReplayItem]
+    improvement_suggestions: list[str]
