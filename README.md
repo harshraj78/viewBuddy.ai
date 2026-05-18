@@ -334,6 +334,7 @@ ai-interview-copilot/
 ## 13. Development Roadmap
 
 See [docs/ROADMAP.md](docs/ROADMAP.md).
+See [docs/PRODUCT_FLOW.md](docs/PRODUCT_FLOW.md) for the actual seven-screen product flow.
 
 Short version:
 

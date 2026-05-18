@@ -13,6 +13,7 @@ This file tracks project progress, architecture decisions, learning notes, bugs,
 - Docker Compose foundation added for backend, frontend, PostgreSQL, and Redis.
 - React/Vite video interview room scaffold added.
 - Live interview API contracts added for session creation, next question, and transcript submission.
+- Candidate-facing frontend refactored into seven product screens: landing, setup, waiting room, live interview, coding round, system design round, and feedback report.
 - Product vision defined.
 - High-level architecture documented.
 - Database and API design drafted.
@@ -56,6 +57,8 @@ MVP must be video-based. Streamlit can remain useful for quick internal dashboar
 - Created backend test suite with health endpoint coverage.
 - Created Streamlit placeholder frontend.
 - Created React/Vite video interview room scaffold with camera/microphone capture and recording controls.
+- Refactored React frontend to match the actual screen flow and keep analytics out of the live interview screen.
+- Created `docs/PRODUCT_FLOW.md` to lock the UX and module architecture.
 - Created live interview API endpoints:
   - `POST /api/v1/live-interviews/sessions`
   - `GET /api/v1/live-interviews/sessions/{session_id}`
@@ -71,6 +74,9 @@ MVP must be video-based. Streamlit can remain useful for quick internal dashboar
 - Add real speech-to-text provider.
 - Add real text-to-speech or browser speech synthesis.
 - Add WebSocket endpoint for live interview events.
+- Replace coding round placeholder with Monaco editor.
+- Replace system design placeholder with whiteboard canvas.
+- Connect feedback report to real evaluation output.
 - Implement first LLM provider abstraction.
 - Implement question generation and answer evaluation endpoints.
 - Build the production candidate-facing video interview MVP.

@@ -21,6 +21,8 @@ The format follows Keep a Changelog principles, and this project aims to use sem
 - Backend pytest and Ruff setup.
 - Streamlit placeholder frontend.
 - React/Vite video interview room scaffold with camera/microphone permission flow and answer recording controls.
+- Seven-screen product flow for landing, setup, waiting room, live interview, coding round, system design, and feedback report.
+- Product flow documentation covering UX rules and core product modules.
 - Live interview session API contracts for creating sessions, requesting questions, and submitting transcripts.
 - Dockerfiles and Docker Compose foundation.
 

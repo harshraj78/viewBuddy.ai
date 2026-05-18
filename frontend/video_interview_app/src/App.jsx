@@ -1,14 +1,22 @@
 import {
+  BarChart3,
+  Bot,
   Camera,
+  CheckCircle2,
   CircleStop,
-  Loader2,
+  Code2,
+  FileText,
+  LayoutTemplate,
   Mic,
+  Mic2,
   MonitorUp,
+  PenLine,
   Play,
   Send,
   Video,
+  Volume2,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 
 import "./styles.css";
@@ -16,22 +24,62 @@ import "./styles.css";
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8020/api/v1";
 
+const roles = ["SDE", "AI Engineer", "Backend", "Frontend"];
+const experiences = ["Fresher", "Mid-level"];
+const interviewTypes = ["Technical", "HR", "System Design"];
+const companyStyles = ["FAANG", "Startup", "Indian Product"];
+const personalities = ["Friendly", "Strict", "FAANG pressure"];
+
+const screenOrder = [
+  "landing",
+  "setup",
+  "waiting",
+  "live",
+  "coding",
+  "system",
+  "report",
+];
+
 function App() {
   const videoRef = useRef(null);
   const mediaRecorderRef = useRef(null);
+  const [screen, setScreen] = useState("landing");
   const [stream, setStream] = useState(null);
   const [session, setSession] = useState(null);
   const [question, setQuestion] = useState(null);
   const [answerText, setAnswerText] = useState("");
   const [isRecording, setIsRecording] = useState(false);
+  const [transcriptOpen, setTranscriptOpen] = useState(false);
   const [status, setStatus] = useState("Ready");
   const [error, setError] = useState("");
+  const [setup, setSetup] = useState({
+    role: "AI Engineer",
+    experience: "Fresher",
+    interviewType: "Technical",
+    companyStyle: "Indian Product",
+    personality: "Friendly",
+    resumeName: "",
+  });
 
   useEffect(() => {
     if (videoRef.current && stream) {
       videoRef.current.srcObject = stream;
     }
-  }, [stream]);
+  }, [stream, screen]);
+
+  const stepIndex = screenOrder.indexOf(screen);
+  const interviewerTone = useMemo(() => {
+    const toneMap = {
+      Friendly: "Warm, encouraging, and clear.",
+      Strict: "Direct, concise, and detail-oriented.",
+      "FAANG pressure": "High bar, fast follow-ups, and tradeoff-focused.",
+    };
+    return toneMap[setup.personality];
+  }, [setup.personality]);
+
+  function updateSetup(field, value) {
+    setSetup((current) => ({ ...current, [field]: value }));
+  }
 
   async function enableMedia() {
     setError("");
@@ -55,9 +103,10 @@ function App() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          target_role: "AI Engineer",
-          mode: "technical",
-          difficulty: "intermediate",
+          target_role: setup.role,
+          mode: setup.interviewType.toLowerCase().replace(" ", "_"),
+          difficulty: setup.experience === "Fresher" ? "beginner" : "intermediate",
+          target_company: setup.companyStyle,
           question_count: 5,
         }),
       });
@@ -66,6 +115,7 @@ function App() {
       setSession(createdSession);
       setStatus("Interview started");
       await requestNextQuestion(createdSession.session_id);
+      setScreen("live");
     } catch (caughtError) {
       setError(caughtError.message);
       setStatus("Ready");
@@ -86,6 +136,7 @@ function App() {
       setQuestion(payload.question);
       setAnswerText("");
       setStatus(payload.question ? "Answering" : "Interview complete");
+      if (!payload.question) setScreen("report");
     } catch (caughtError) {
       setError(caughtError.message);
       setStatus("Ready");
@@ -138,76 +189,440 @@ function App() {
     }
   }
 
-  const canStart = Boolean(stream) && !session;
-
   return (
-    <main className="shell">
-      <section className="topbar">
+    <main className="app-shell">
+      {screen !== "landing" ? (
+        <ProgressHeader screen={screen} stepIndex={stepIndex} status={status} />
+      ) : null}
+
+      {screen === "landing" ? (
+        <LandingScreen onStart={() => setScreen("setup")} />
+      ) : null}
+
+      {screen === "setup" ? (
+        <SetupScreen
+          setup={setup}
+          interviewerTone={interviewerTone}
+          onChange={updateSetup}
+          onNext={() => setScreen("waiting")}
+        />
+      ) : null}
+
+      {screen === "waiting" ? (
+        <WaitingRoom
+          stream={stream}
+          videoRef={videoRef}
+          setup={setup}
+          error={error}
+          onEnableMedia={enableMedia}
+          onStartInterview={startInterview}
+        />
+      ) : null}
+
+      {screen === "live" ? (
+        <LiveInterview
+          videoRef={videoRef}
+          stream={stream}
+          question={question}
+          answerText={answerText}
+          transcriptOpen={transcriptOpen}
+          isRecording={isRecording}
+          error={error}
+          onToggleTranscript={() => setTranscriptOpen((current) => !current)}
+          onAnswerText={setAnswerText}
+          onToggleRecording={toggleRecording}
+          onSubmitTranscript={submitTranscript}
+          onNextQuestion={() => requestNextQuestion()}
+          onLeave={() => setScreen("report")}
+        />
+      ) : null}
+
+      {screen === "coding" ? <CodingRound onBack={() => setScreen("live")} /> : null}
+      {screen === "system" ? <SystemDesignRound onBack={() => setScreen("live")} /> : null}
+      {screen === "report" ? <FeedbackReport onRestart={() => setScreen("setup")} /> : null}
+    </main>
+  );
+}
+
+function ProgressHeader({ screen, stepIndex, status }) {
+  return (
+    <header className="progress-header">
+      <div>
+        <p className="eyebrow">viewBuddy.ai</p>
+        <h1>{screenLabels[screen]}</h1>
+      </div>
+      <div className="progress-meta">
+        <span>{status}</span>
+        <span>
+          Step {stepIndex + 1} of {screenOrder.length}
+        </span>
+      </div>
+    </header>
+  );
+}
+
+const screenLabels = {
+  setup: "Interview setup",
+  waiting: "Waiting room",
+  live: "Live interview",
+  coding: "Coding round",
+  system: "System design round",
+  report: "Feedback report",
+};
+
+function LandingScreen({ onStart }) {
+  return (
+    <section className="landing">
+      <nav className="nav">
+        <strong>viewBuddy.ai</strong>
+        <button className="ghost compact" onClick={onStart}>Start interview</button>
+      </nav>
+
+      <section className="hero">
         <div>
-          <p className="eyebrow">Live AI interview</p>
-          <h1>AI Interview Copilot</h1>
-        </div>
-        <span className="status">{status}</span>
-      </section>
-
-      <section className="interview-grid">
-        <div className="stage">
-          <div className="interviewer">
-            <MonitorUp aria-hidden="true" />
-            <div>
-              <p className="label">Interviewer</p>
-              <h2>{question?.question_text ?? "Start when you are ready."}</h2>
-            </div>
-          </div>
-
-          <div className="video-frame">
-            {stream ? (
-              <video ref={videoRef} autoPlay muted playsInline />
-            ) : (
-              <div className="camera-empty">
-                <Video aria-hidden="true" />
-                <span>Camera off</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <aside className="control-panel">
-          <button className="primary" onClick={enableMedia}>
-            <Camera size={18} />
-            Enable media
-          </button>
-
-          <button className="primary" disabled={!canStart} onClick={startInterview}>
+          <p className="eyebrow">AI mock interviews for serious candidates</p>
+          <h1>Practice like it is a real video interview.</h1>
+          <p className="hero-copy">
+            Role-specific AI interviews for SDE, AI Engineer, backend, and frontend
+            candidates. Built around live conversation, not dashboard noise.
+          </p>
+          <button className="primary wide" onClick={onStart}>
             <Play size={18} />
             Start interview
           </button>
-
-          <button className="secondary" disabled={!question} onClick={toggleRecording}>
-            {isRecording ? <CircleStop size={18} /> : <Mic size={18} />}
-            {isRecording ? "Stop recording" : "Record answer"}
-          </button>
-
-          <textarea
-            value={answerText}
-            onChange={(event) => setAnswerText(event.target.value)}
-            placeholder="Transcript appears here after speech-to-text. For this foundation build, paste or type the transcript."
-          />
-
-          <button className="secondary" disabled={!answerText.trim()} onClick={submitTranscript}>
-            <Send size={18} />
-            Submit transcript
-          </button>
-
-          <button className="ghost" disabled={!session} onClick={() => requestNextQuestion()}>
-            <Loader2 size={18} />
-            Next question
-          </button>
-
-          {error ? <p className="error">{error}</p> : null}
-        </aside>
+        </div>
+        <div className="demo-preview">
+          <div className="mock-video">
+            <Bot size={44} />
+            <span>AI Interviewer</span>
+          </div>
+          <div className="mock-question">
+            Explain one project where you made an engineering tradeoff.
+          </div>
+        </div>
       </section>
-    </main>
+
+      <section className="section-band">
+        <SectionTitle title="Interview types" />
+        <div className="three-grid">
+          <InfoCard icon={<Mic2 />} title="Technical" text="Project deep dives, fundamentals, and production thinking." />
+          <InfoCard icon={<Code2 />} title="Coding" text="LeetCode-style rounds with hints and optimization probes." />
+          <InfoCard icon={<LayoutTemplate />} title="System design" text="Architecture prompts with a focused whiteboard mode." />
+        </div>
+      </section>
+
+      <section className="section-band">
+        <SectionTitle title="What candidates say" />
+        <div className="three-grid">
+          <Quote text="The waiting room made it feel like an actual interview, not another chatbot." />
+          <Quote text="Follow-up questions forced me to explain tradeoffs clearly." />
+          <Quote text="The report separated communication gaps from technical gaps." />
+        </div>
+      </section>
+
+      <section className="cta-strip">
+        <h2>Ready for your next mock interview?</h2>
+        <button className="primary" onClick={onStart}>
+          <Video size={18} />
+          Enter setup
+        </button>
+      </section>
+    </section>
+  );
+}
+
+function SetupScreen({ setup, interviewerTone, onChange, onNext }) {
+  return (
+    <section className="setup-grid">
+      <div className="panel">
+        <SectionTitle title="Configure interview" />
+        <SelectGroup label="Role" value={setup.role} options={roles} onChange={(value) => onChange("role", value)} />
+        <SelectGroup label="Experience" value={setup.experience} options={experiences} onChange={(value) => onChange("experience", value)} />
+        <SelectGroup label="Interview type" value={setup.interviewType} options={interviewTypes} onChange={(value) => onChange("interviewType", value)} />
+        <SelectGroup label="Company style" value={setup.companyStyle} options={companyStyles} onChange={(value) => onChange("companyStyle", value)} />
+        <SelectGroup label="Personality" value={setup.personality} options={personalities} onChange={(value) => onChange("personality", value)} />
+        <label className="upload-box">
+          <FileText size={18} />
+          <span>{setup.resumeName || "Upload resume PDF or DOCX"}</span>
+          <input
+            type="file"
+            accept=".pdf,.docx"
+            onChange={(event) => onChange("resumeName", event.target.files?.[0]?.name ?? "")}
+          />
+        </label>
+        <button className="primary wide" onClick={onNext}>
+          Continue to waiting room
+        </button>
+      </div>
+
+      <div className="panel preview-panel">
+        <SectionTitle title="Interviewer preview" />
+        <div className="interviewer-avatar">
+          <Bot size={48} />
+        </div>
+        <h2>{setup.personality} interviewer</h2>
+        <p>{interviewerTone}</p>
+        <div className="preview-line">
+          <span>Role</span>
+          <strong>{setup.role}</strong>
+        </div>
+        <div className="preview-line">
+          <span>Style</span>
+          <strong>{setup.companyStyle}</strong>
+        </div>
+        <div className="preview-line">
+          <span>Round</span>
+          <strong>{setup.interviewType}</strong>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function WaitingRoom({ stream, videoRef, setup, error, onEnableMedia, onStartInterview }) {
+  return (
+    <section className="waiting-grid">
+      <div className="panel">
+        <SectionTitle title="Camera test" />
+        <VideoTile stream={stream} videoRef={videoRef} />
+        {error ? <p className="error">{error}</p> : null}
+        <div className="button-row">
+          <button className="secondary" onClick={onEnableMedia}>
+            <Camera size={18} />
+            Test camera
+          </button>
+          <button className="secondary" onClick={onEnableMedia}>
+            <Mic size={18} />
+            Test mic
+          </button>
+        </div>
+      </div>
+
+      <div className="panel">
+        <SectionTitle title="AI interviewer intro" />
+        <div className="intro-card">
+          <Volume2 size={24} />
+          <p>
+            I will run a {setup.companyStyle} style {setup.interviewType.toLowerCase()} round
+            for a {setup.role} role. Keep answers structured and speak naturally.
+          </p>
+        </div>
+        <ul className="tips">
+          <li>Look at the camera when explaining decisions.</li>
+          <li>Use examples, tradeoffs, and measurable outcomes.</li>
+          <li>Ask for clarification if the question is ambiguous.</li>
+        </ul>
+        <button className="primary wide" disabled={!stream} onClick={onStartInterview}>
+          <Play size={18} />
+          Start live interview
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function LiveInterview({
+  videoRef,
+  stream,
+  question,
+  answerText,
+  transcriptOpen,
+  isRecording,
+  error,
+  onToggleTranscript,
+  onAnswerText,
+  onToggleRecording,
+  onSubmitTranscript,
+  onNextQuestion,
+  onLeave,
+}) {
+  return (
+    <section className="live-shell">
+      <div className="ai-video">
+        <Bot size={56} />
+        <span>AI Interviewer</span>
+      </div>
+
+      <div className="question-card">
+        <p className="label">Current question</p>
+        <h2>{question?.question_text ?? "Interview complete. You can leave for feedback."}</h2>
+      </div>
+
+      <details className="transcript" open={transcriptOpen} onToggle={onToggleTranscript}>
+        <summary>Live transcript</summary>
+        <textarea
+          value={answerText}
+          onChange={(event) => onAnswerText(event.target.value)}
+          placeholder="Speech-to-text will appear here. For now, type or paste the transcript."
+        />
+      </details>
+
+      <div className="candidate-pill">
+        <VideoTile stream={stream} videoRef={videoRef} compact />
+      </div>
+
+      {error ? <p className="error">{error}</p> : null}
+
+      <div className="live-controls">
+        <button className="secondary icon-button" onClick={onToggleRecording}>
+          {isRecording ? <CircleStop size={18} /> : <Mic size={18} />}
+          {isRecording ? "Stop" : "Mic"}
+        </button>
+        <button className="secondary icon-button">
+          <Camera size={18} />
+          Cam
+        </button>
+        <button className="secondary icon-button" onClick={onSubmitTranscript}>
+          <Send size={18} />
+          Submit
+        </button>
+        <button className="secondary icon-button" onClick={onNextQuestion}>
+          <Play size={18} />
+          Next
+        </button>
+        <button className="danger icon-button" onClick={onLeave}>
+          Leave
+        </button>
+        <button className="ghost icon-button">
+          <PenLine size={18} />
+          Notes
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function CodingRound({ onBack }) {
+  return (
+    <section className="coding-layout">
+      <div className="problem-panel">
+        <SectionTitle title="Problem description" />
+        <h2>Design a rate limiter</h2>
+        <p>
+          Implement a function that decides whether a user request should be allowed
+          based on a maximum number of requests per minute.
+        </p>
+        <ul className="tips">
+          <li>Discuss data structures first.</li>
+          <li>Explain time and space complexity.</li>
+          <li>Optimize after getting a working approach.</li>
+        </ul>
+      </div>
+      <div className="coding-interviewer">
+        <Bot size={32} />
+        <p>I will observe pauses and ask hints only when needed.</p>
+      </div>
+      <div className="editor-panel">
+        <pre>{`function allowRequest(userId, timestamp) {\n  // Monaco editor will mount here.\n}`}</pre>
+      </div>
+      <button className="ghost compact" onClick={onBack}>Back to interview</button>
+    </section>
+  );
+}
+
+function SystemDesignRound({ onBack }) {
+  return (
+    <section className="system-layout">
+      <div className="question-card">
+        <p className="label">AI interviewer question</p>
+        <h2>Design a resume-aware AI mock interview platform for 10,000 daily users.</h2>
+      </div>
+      <div className="whiteboard">
+        <span>Whiteboard / architecture canvas</span>
+      </div>
+      <button className="ghost compact" onClick={onBack}>Back to interview</button>
+    </section>
+  );
+}
+
+function FeedbackReport({ onRestart }) {
+  return (
+    <section className="report">
+      <div className="report-hero">
+        <CheckCircle2 size={36} />
+        <div>
+          <p className="eyebrow">Interview complete</p>
+          <h2>Feedback belongs here, after the pressure is over.</h2>
+        </div>
+      </div>
+
+      <div className="report-grid">
+        <ReportCard title="Communication" items={["Confidence: improving", "Filler words: moderate", "Pace: steady"]} />
+        <ReportCard title="Technical" items={["Depth: solid", "Correctness: good", "Tradeoffs: add more detail"]} />
+        <ReportCard title="Behavioral" items={["Structure: use STAR", "Leadership: add examples", "Clarity: strong"]} />
+        <ReportCard title="Replay" items={["Recording placeholder", "Transcript placeholder", "Bookmarks coming next"]} />
+      </div>
+
+      <div className="improvement">
+        <BarChart3 size={24} />
+        <p>
+          Next improvement: connect real evaluation scores, transcript replay, and a
+          personalized practice roadmap.
+        </p>
+      </div>
+      <button className="primary" onClick={onRestart}>Start another interview</button>
+    </section>
+  );
+}
+
+function VideoTile({ stream, videoRef, compact = false }) {
+  return (
+    <div className={compact ? "video-tile compact-video" : "video-tile"}>
+      {stream ? (
+        <video ref={videoRef} autoPlay muted playsInline />
+      ) : (
+        <div className="camera-empty">
+          <Video aria-hidden="true" />
+          <span>Camera off</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SelectGroup({ label, value, options, onChange }) {
+  return (
+    <label className="field">
+      <span>{label}</span>
+      <select value={value} onChange={(event) => onChange(event.target.value)}>
+        {options.map((option) => (
+          <option key={option}>{option}</option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function SectionTitle({ title }) {
+  return <h2 className="section-title">{title}</h2>;
+}
+
+function InfoCard({ icon, title, text }) {
+  return (
+    <article className="info-card">
+      {icon}
+      <h3>{title}</h3>
+      <p>{text}</p>
+    </article>
+  );
+}
+
+function Quote({ text }) {
+  return (
+    <blockquote className="quote">
+      <p>{text}</p>
+    </blockquote>
+  );
+}
+
+function ReportCard({ title, items }) {
+  return (
+    <article className="report-card">
+      <h3>{title}</h3>
+      {items.map((item) => (
+        <p key={item}>{item}</p>
+      ))}
+    </article>
   );
 }
 
