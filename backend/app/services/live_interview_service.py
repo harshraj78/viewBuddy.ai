@@ -9,6 +9,7 @@ from app.schemas.live_interview import (
     AnswerTranscriptRequest,
     AnswerTranscriptResponse,
     FeedbackReportResponse,
+    InterviewRuntimeState,
     LiveInterviewQuestion,
     LiveInterviewSessionResponse,
     LiveInterviewStatus,
@@ -17,6 +18,7 @@ from app.schemas.live_interview import (
     StartLiveInterviewRequest,
     TranscriptReplayItem,
 )
+from app.services.interview_state_machine import interview_state_machine
 
 
 @dataclass
@@ -24,9 +26,11 @@ class LiveInterviewSession:
     session_id: UUID
     request: StartLiveInterviewRequest
     status: LiveInterviewStatus = LiveInterviewStatus.created
+    runtime_state: InterviewRuntimeState = InterviewRuntimeState.setup
     current_index: int = 0
     questions: list[LiveInterviewQuestion] = field(default_factory=list)
     transcripts: dict[UUID, AnswerTranscriptRequest] = field(default_factory=dict)
+    memory: list[dict[str, str]] = field(default_factory=list)
 
 
 class LiveInterviewService:
@@ -46,12 +50,59 @@ class LiveInterviewService:
     def get_session(self, session_id: UUID) -> LiveInterviewSessionResponse:
         return self._to_response(self._get_session(session_id))
 
+    def get_runtime_session(self, session_id: UUID) -> LiveInterviewSession:
+        return self._get_session(session_id)
+
+    def transition_runtime_state(
+        self,
+        session_id: UUID,
+        next_state: InterviewRuntimeState,
+    ) -> InterviewRuntimeState:
+        session = self._get_session(session_id)
+        session.runtime_state = interview_state_machine.transition(
+            session.runtime_state,
+            next_state,
+        )
+        return session.runtime_state
+
+    def append_memory(self, session_id: UUID, *, speaker: str, message: str) -> None:
+        session = self._get_session(session_id)
+        session.memory.append({"speaker": speaker, "message": message})
+
+    def add_followup_question(self, session_id: UUID, question_text: str) -> LiveInterviewQuestion:
+        session = self._get_session(session_id)
+        question = LiveInterviewQuestion(
+            id=uuid4(),
+            order_index=len(session.questions) + 1,
+            question_text=question_text,
+            question_type="follow_up",
+            expected_answer_seconds=90,
+            preparation_seconds=5,
+        )
+        session.questions.append(question)
+        return question
+
     def next_question(self, session_id: UUID) -> NextQuestionResponse:
         session = self._get_session(session_id)
         session.status = LiveInterviewStatus.in_progress
+        if session.runtime_state == InterviewRuntimeState.setup:
+            session.runtime_state = interview_state_machine.transition(
+                session.runtime_state,
+                InterviewRuntimeState.introduction,
+            )
+        if session.runtime_state in {
+            InterviewRuntimeState.waiting_room,
+            InterviewRuntimeState.introduction,
+            InterviewRuntimeState.follow_up,
+        }:
+            session.runtime_state = interview_state_machine.transition(
+                session.runtime_state,
+                InterviewRuntimeState.questioning,
+            )
 
         if session.current_index >= len(session.questions):
             session.status = LiveInterviewStatus.completed
+            session.runtime_state = InterviewRuntimeState.feedback_generation
             return NextQuestionResponse(
                 session_id=session.session_id,
                 status=session.status,
@@ -60,6 +111,7 @@ class LiveInterviewService:
             )
 
         question = session.questions[session.current_index]
+        session.memory.append({"speaker": "interviewer", "message": question.question_text})
         session.current_index += 1
         return NextQuestionResponse(
             session_id=session.session_id,

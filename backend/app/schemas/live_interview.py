@@ -24,6 +24,18 @@ class LiveInterviewStatus(StrEnum):
     completed = "completed"
 
 
+class InterviewRuntimeState(StrEnum):
+    setup = "SETUP"
+    waiting_room = "WAITING_ROOM"
+    introduction = "INTRODUCTION"
+    questioning = "QUESTIONING"
+    follow_up = "FOLLOW_UP"
+    coding_round = "CODING_ROUND"
+    system_design = "SYSTEM_DESIGN"
+    feedback_generation = "FEEDBACK_GENERATION"
+    completed = "COMPLETED"
+
+
 class MediaRequirement(BaseModel):
     camera_required: bool = True
     microphone_required: bool = True
@@ -104,3 +116,19 @@ class FeedbackReportResponse(BaseModel):
     improvement_suggestions: list[str]
     evaluator: str
     prompt_version: str
+
+
+class WebSocketEventType(StrEnum):
+    session_start = "session_start"
+    transcript_chunk = "transcript_chunk"
+    ai_response_chunk = "ai_response_chunk"
+    interviewer_question = "interviewer_question"
+    followup_question = "followup_question"
+    state_transition = "state_transition"
+    interview_complete = "interview_complete"
+    error = "error"
+
+
+class WebSocketEvent(BaseModel):
+    type: WebSocketEventType
+    payload: dict = Field(default_factory=dict)

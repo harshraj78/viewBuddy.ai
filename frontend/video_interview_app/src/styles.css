@@ -405,6 +405,13 @@ video {
   margin-bottom: 0;
 }
 
+.streamed-ai {
+  color: #bdf6ed;
+  font-weight: 800;
+  line-height: 1.6;
+  margin: 14px 0 0;
+}
+
 .question-actions {
   align-items: center;
   color: #a8bdd0;

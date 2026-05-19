@@ -165,6 +165,14 @@ Current MVP voice layer:
 - Browser SpeechSynthesis for local interviewer text-to-speech.
 - This keeps the MVP fast and demoable before adding paid realtime infrastructure.
 
+Current realtime layer:
+
+- FastAPI WebSockets manage live interview events.
+- Frontend sends `transcript_chunk` events after browser STT captures candidate speech.
+- Backend streams `ai_response_chunk` events and emits `followup_question`.
+- Gemini 2.5 Flash can be enabled with `GEMINI_API_KEY`; otherwise the zero-cost fallback interviewer still asks believable follow-ups.
+- Required event types: `session_start`, `transcript_chunk`, `ai_response_chunk`, `interviewer_question`, `followup_question`, `state_transition`, `interview_complete`.
+
 ## Recommended Scalable Stack
 
 - Frontend: Next.js, TailwindCSS, shadcn/ui.

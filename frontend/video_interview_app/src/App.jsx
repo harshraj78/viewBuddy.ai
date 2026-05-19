@@ -44,6 +44,7 @@ function App() {
   const videoRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const recognitionRef = useRef(null);
+  const websocketRef = useRef(null);
   const [screen, setScreen] = useState("landing");
   const [stream, setStream] = useState(null);
   const [session, setSession] = useState(null);
@@ -55,6 +56,7 @@ function App() {
   const [isListening, setIsListening] = useState(false);
   const [transcriptOpen, setTranscriptOpen] = useState(false);
   const [voiceMessage, setVoiceMessage] = useState("");
+  const [streamedAiText, setStreamedAiText] = useState("");
   const [status, setStatus] = useState("Ready");
   const [error, setError] = useState("");
   const [setup, setSetup] = useState({
@@ -77,6 +79,10 @@ function App() {
       speakQuestion(question.question_text);
     }
   }, [question, screen]);
+
+  useEffect(() => {
+    return () => websocketRef.current?.close();
+  }, []);
 
   const stepIndex = screenOrder.indexOf(screen);
   const interviewerTone = useMemo(() => {
@@ -124,6 +130,7 @@ function App() {
       if (!response.ok) throw new Error("Could not create interview session");
       const createdSession = await response.json();
       setSession(createdSession);
+      connectInterviewSocket(createdSession.session_id);
       setStatus("Interview started");
       await requestNextQuestion(createdSession.session_id);
       setScreen(setup.interviewType === "System Design" ? "system" : "live");
@@ -145,6 +152,7 @@ function App() {
       if (!response.ok) throw new Error("Could not load next question");
       const payload = await response.json();
       setQuestion(payload.question);
+      setStreamedAiText("");
       setAnswerText("");
       setStatus(payload.question ? "Answering" : "Interview complete");
       if (!payload.question) setScreen("report");
@@ -248,12 +256,60 @@ function App() {
       );
       if (!response.ok) throw new Error("Could not submit answer transcript");
       await response.json();
+      sendInterviewEvent("transcript_chunk", {
+        question: question.question_text,
+        transcript: answerText,
+        personality: setup.personality,
+      });
       setStatus("Answer queued for evaluation");
       await loadReport();
     } catch (caughtError) {
       setError(caughtError.message);
       setStatus("Answering");
     }
+  }
+
+  function connectInterviewSocket(sessionId) {
+    websocketRef.current?.close();
+    const wsBaseUrl = API_BASE_URL.replace(/^http/, "ws");
+    const socket = new WebSocket(`${wsBaseUrl}/live-interviews/sessions/${sessionId}/ws`);
+    websocketRef.current = socket;
+    socket.onopen = () => setStatus("Realtime interview connected");
+    socket.onmessage = (message) => {
+      const event = JSON.parse(message.data);
+      if (event.type === "ai_response_chunk") {
+        setStreamedAiText((current) => `${current} ${event.payload.text}`.trim());
+      }
+      if (event.type === "followup_question") {
+        const followup = event.payload.question;
+        setQuestion({
+          id: event.payload.question_id,
+          order_index: question?.order_index ?? 0,
+          question_text: followup,
+          question_type: "follow_up",
+          expected_answer_seconds: 90,
+          preparation_seconds: 5,
+        });
+        setAnswerText("");
+        setStreamedAiText("");
+        speakQuestion(followup);
+      }
+      if (event.type === "state_transition") {
+        setStatus(`State: ${event.payload.state}`);
+      }
+      if (event.type === "error") {
+        setError(event.payload.message);
+      }
+    };
+    socket.onclose = () => setVoiceMessage("Realtime connection closed.");
+  }
+
+  function sendInterviewEvent(type, payload) {
+    if (websocketRef.current?.readyState !== WebSocket.OPEN) {
+      setVoiceMessage("Realtime socket is not connected. REST transcript was still saved.");
+      return;
+    }
+    websocketRef.current.send(JSON.stringify({ type, payload }));
   }
 
   async function loadReport() {
@@ -315,6 +371,7 @@ function App() {
           isRecording={isRecording}
           isListening={isListening}
           voiceMessage={voiceMessage}
+          streamedAiText={streamedAiText}
           error={error}
           onToggleTranscript={() => setTranscriptOpen((current) => !current)}
           onAnswerText={setAnswerText}
@@ -533,6 +590,7 @@ function LiveInterview({
   isRecording,
   isListening,
   voiceMessage,
+  streamedAiText,
   error,
   onToggleTranscript,
   onAnswerText,
@@ -554,6 +612,7 @@ function LiveInterview({
       <div className="question-card">
         <p className="label">Current question</p>
         <h2>{question?.question_text ?? "Interview complete. You can leave for feedback."}</h2>
+        {streamedAiText ? <p className="streamed-ai">{streamedAiText}</p> : null}
         <div className="question-actions">
           <button className="ghost compact" onClick={onSpeakQuestion}>
             <Volume2 size={16} />

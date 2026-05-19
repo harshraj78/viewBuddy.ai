@@ -37,6 +37,8 @@ class Settings(BaseSettings):
     llm_provider: str = "openai"
     openai_api_key: str | None = None
     openai_model: str = "gpt-4.1-mini"
+    gemini_api_key: str | None = None
+    gemini_model: str = "gemini-2.5-flash"
     ai_evaluation_mode: str = "fallback"
     llm_request_timeout_seconds: int = 60
     llm_max_retries: int = 3

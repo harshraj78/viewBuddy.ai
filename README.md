@@ -555,6 +555,7 @@ Important MVP direction:
 - Current voice MVP uses browser speech recognition and speech synthesis; production realtime should move to OpenAI Realtime API and LiveKit.
 - Current feedback MVP generates a deterministic scorecard from submitted transcripts; production evaluation should use versioned LLM rubrics.
 - AI evaluation can run in fallback mode locally or LLM mode with `AI_EVALUATION_MODE=llm` and `OPENAI_API_KEY`.
+- Realtime interview orchestration uses FastAPI WebSockets plus browser STT/TTS. Gemini follow-ups can be enabled with `GEMINI_API_KEY`; otherwise the app uses a zero-cost fallback interviewer.
 
 Quality checks:
 

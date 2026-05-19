@@ -17,6 +17,8 @@ This file tracks project progress, architecture decisions, learning notes, bugs,
 - Browser voice MVP added with speech-to-text transcript capture and text-to-speech interviewer question playback.
 - MVP feedback report endpoint added and connected to submitted live interview transcripts.
 - AI evaluator abstraction added with OpenAI-compatible JSON evaluation path and deterministic fallback.
+- FastAPI WebSocket interview orchestration added with explicit state transitions and streamed follow-up events.
+- Gemini 2.5 Flash-ready follow-up engine added with zero-cost deterministic fallback.
 - Product vision defined.
 - High-level architecture documented.
 - Database and API design drafted.
@@ -68,6 +70,8 @@ MVP must be video-based. Streamlit can remain useful for quick internal dashboar
 - Connected frontend feedback report screen to backend-generated report data.
 - Added prompt versioning constants for answer evaluation.
 - Added OpenAI provider boundary for future LLM scoring.
+- Added WebSocket events for live interview session start, transcript chunks, AI response chunks, follow-up questions, state transitions, and interview completion.
+- Added explicit interview runtime states: setup, waiting room, introduction, questioning, follow-up, coding, system design, feedback generation, completed.
 - Created live interview API endpoints:
   - `POST /api/v1/live-interviews/sessions`
   - `GET /api/v1/live-interviews/sessions/{session_id}`
@@ -89,6 +93,7 @@ MVP must be video-based. Streamlit can remain useful for quick internal dashboar
 - Connect feedback report to real evaluation output.
 - Replace deterministic MVP evaluator with LLM rubric evaluation once provider keys are configured.
 - Add LLM call logging for provider, model, latency, token usage, and errors.
+- Persist WebSocket transcript and state transitions into PostgreSQL-backed `interview_messages`.
 - Implement first LLM provider abstraction.
 - Implement question generation and answer evaluation endpoints.
 - Build the production candidate-facing video interview MVP.

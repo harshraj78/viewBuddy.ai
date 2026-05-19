@@ -27,6 +27,8 @@ The format follows Keep a Changelog principles, and this project aims to use sem
 - Live interview session API contracts for creating sessions, requesting questions, and submitting transcripts.
 - Feedback report API generated from submitted transcripts and connected to the frontend report screen.
 - AI evaluator abstraction with OpenAI JSON evaluation path and deterministic fallback mode.
+- FastAPI WebSocket orchestration for realtime transcript-to-follow-up interview flow.
+- Gemini-ready conversation engine with zero-cost fallback follow-up generation.
 - Dockerfiles and Docker Compose foundation.
 
 ### Changed
