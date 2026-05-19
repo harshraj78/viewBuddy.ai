@@ -132,3 +132,4 @@ class WebSocketEventType(StrEnum):
 class WebSocketEvent(BaseModel):
     type: WebSocketEventType
     payload: dict = Field(default_factory=dict)
+    event_id: str | None = None

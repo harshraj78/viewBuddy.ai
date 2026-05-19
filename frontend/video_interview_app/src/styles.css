@@ -423,13 +423,58 @@ video {
   margin-top: 14px;
 }
 
-.transcript summary {
-  cursor: pointer;
-  font-weight: 900;
+.transcript-toggle {
+  background: transparent;
+  color: #eef4ff;
+  justify-content: space-between;
+  min-height: auto;
+  padding: 0;
+  width: 100%;
 }
 
-.transcript textarea {
+.transcript-toggle span {
+  color: #8fb3c8;
+  font-size: 0.85rem;
+}
+
+.transcript-body {
+  display: grid;
+  gap: 12px;
   margin-top: 12px;
+}
+
+.transcript-feed {
+  display: grid;
+  gap: 10px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.transcript-line {
+  border-left: 3px solid rgba(214, 228, 239, 0.22);
+  padding-left: 12px;
+}
+
+.transcript-line strong {
+  color: #eef4ff;
+  display: block;
+  font-size: 0.82rem;
+  margin-bottom: 4px;
+}
+
+.transcript-line p,
+.empty-transcript {
+  color: #b9c9d8;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.transcript-line.interviewer {
+  border-left-color: #16c2a3;
+}
+
+.transcript-line.candidate {
+  border-left-color: #8fb3c8;
 }
 
 .candidate-pill {

@@ -8,8 +8,12 @@ ALLOWED_TRANSITIONS: dict[InterviewRuntimeState, set[InterviewRuntimeState]] = {
     InterviewRuntimeState.waiting_room: {
         InterviewRuntimeState.introduction,
         InterviewRuntimeState.questioning,
+        InterviewRuntimeState.feedback_generation,
     },
-    InterviewRuntimeState.introduction: {InterviewRuntimeState.questioning},
+    InterviewRuntimeState.introduction: {
+        InterviewRuntimeState.questioning,
+        InterviewRuntimeState.feedback_generation,
+    },
     InterviewRuntimeState.questioning: {
         InterviewRuntimeState.follow_up,
         InterviewRuntimeState.coding_round,

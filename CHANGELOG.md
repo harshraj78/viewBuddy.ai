@@ -30,14 +30,21 @@ The format follows Keep a Changelog principles, and this project aims to use sem
 - FastAPI WebSocket orchestration for realtime transcript-to-follow-up interview flow.
 - Gemini-ready conversation engine with zero-cost fallback follow-up generation.
 - Dockerfiles and Docker Compose foundation.
+- WebSocket event IDs for idempotent transcript handling.
+- Collapsible live transcript feed with separate interviewer and candidate turns.
+- Browser voice lifecycle handling for one-speaker-at-a-time interview flow.
 
 ### Changed
 
-- Nothing yet.
+- Realtime session startup now avoids racing REST question loading against WebSocket introduction state.
+- Follow-up generation now includes acknowledgement pacing and more natural interviewer transitions.
+- Live interview UI now uses stable active session/question refs to reduce stale state during follow-ups.
 
 ### Fixed
 
-- Nothing yet.
+- Prevented duplicate transcript WebSocket events from generating duplicate follow-up questions.
+- Prevented overlapping browser speech synthesis and microphone recognition during live interviews.
+- Fixed early interview leave flow so sessions can transition to feedback generation cleanly.
 
 ### Security
 

@@ -19,6 +19,9 @@ This file tracks project progress, architecture decisions, learning notes, bugs,
 - AI evaluator abstraction added with OpenAI-compatible JSON evaluation path and deterministic fallback.
 - FastAPI WebSocket interview orchestration added with explicit state transitions and streamed follow-up events.
 - Gemini 2.5 Flash-ready follow-up engine added with zero-cost deterministic fallback.
+- Realtime interview stability improved with idempotent WebSocket transcript events, safer state transitions, and duplicate-message protection.
+- Live transcript UX now separates interviewer and candidate turns with collapsible transcript history.
+- Browser voice flow improved to prevent overlapping speech synthesis and safely restart speech recognition during answer capture.
 - Product vision defined.
 - High-level architecture documented.
 - Database and API design drafted.
@@ -72,6 +75,11 @@ MVP must be video-based. Streamlit can remain useful for quick internal dashboar
 - Added OpenAI provider boundary for future LLM scoring.
 - Added WebSocket events for live interview session start, transcript chunks, AI response chunks, follow-up questions, state transitions, and interview completion.
 - Added explicit interview runtime states: setup, waiting room, introduction, questioning, follow-up, coding, system design, feedback generation, completed.
+- Added WebSocket event IDs to prevent duplicate follow-up generation from repeated transcript sends.
+- Added realistic interviewer pacing with acknowledgement messages, short pauses, and contextual follow-up transitions.
+- Added frontend stale-state guards for active session, active question, recording state, and speech state.
+- Added collapsible live transcript feed with clear interviewer/candidate separation.
+- Improved browser speech flow so interviewer playback cancels active recognition and candidate recording cancels overlapping playback.
 - Created live interview API endpoints:
   - `POST /api/v1/live-interviews/sessions`
   - `GET /api/v1/live-interviews/sessions/{session_id}`
@@ -85,8 +93,7 @@ MVP must be video-based. Streamlit can remain useful for quick internal dashboar
 - Implement resume upload and parsing pipeline.
 - Replace in-memory live interview service with PostgreSQL-backed session persistence.
 - Add real speech-to-text provider.
-- Add real text-to-speech or browser speech synthesis.
-- Add WebSocket endpoint for live interview events.
+- Add production text-to-speech provider once moving beyond the zero-cost browser MVP.
 - Replace browser-only voice with OpenAI Realtime API and/or LiveKit when moving from MVP to production realtime.
 - Replace coding round placeholder with Monaco editor.
 - Replace system design placeholder with whiteboard canvas.

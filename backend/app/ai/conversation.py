@@ -31,6 +31,7 @@ class AIConversationEngine:
             current_question=current_question,
             transcript=transcript,
             personality=personality,
+            memory=memory,
         ):
             yield chunk
 
@@ -75,8 +76,14 @@ class AIConversationEngine:
         current_question: str,
         transcript: str,
         personality: str,
+        memory: list[dict],
     ):
         lower_transcript = transcript.lower()
+        recent_interviewer_questions = [
+            item["message"].lower()
+            for item in memory[-8:]
+            if item.get("speaker") == "interviewer"
+        ]
         if "redis" in lower_transcript or "cache" in lower_transcript:
             response = "What cache invalidation strategy did you use, and how did you test it?"
         elif "api" in lower_transcript or "fastapi" in lower_transcript:
@@ -94,8 +101,16 @@ class AIConversationEngine:
                 "what you would improve next."
             )
 
+        if any(response.lower()[:45] in question for question in recent_interviewer_questions):
+            response = (
+                "Let us go one level deeper. What was the hardest failure case, "
+                "and how would you detect it in production?"
+            )
+
         if personality == "FAANG pressure":
-            response = f"Be specific. {response}"
+            response = f"Be specific and keep it structured. {response}"
+        elif personality == "Strict":
+            response = f"I want a precise answer. {response}"
         elif personality == "Friendly":
             response = f"That is a good start. {response}"
 
@@ -115,7 +130,8 @@ You are a professional AI interviewer.
 Personality: {personality}
 
 Ask exactly one concise follow-up question based on the candidate answer.
-Challenge vague responses. Do not give feedback yet.
+Challenge vague responses. Avoid repeating recent questions. Do not give feedback yet.
+Use a natural interviewer transition, then ask the follow-up.
 
 Current question:
 {current_question}

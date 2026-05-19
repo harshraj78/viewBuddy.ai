@@ -9,7 +9,6 @@ import {
   LayoutTemplate,
   Mic,
   Mic2,
-  MonitorUp,
   PenLine,
   Play,
   Send,
@@ -40,20 +39,32 @@ const screenOrder = [
   "report",
 ];
 
+function createClientId(prefix = "client") {
+  return `${prefix}-${globalThis.crypto?.randomUUID?.() ?? Date.now()}`;
+}
+
 function App() {
   const videoRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const recognitionRef = useRef(null);
   const websocketRef = useRef(null);
+  const questionRef = useRef(null);
+  const setupRef = useRef(null);
+  const sessionRef = useRef(null);
+  const isRecordingRef = useRef(false);
+  const isSpeakingRef = useRef(false);
+  const processedSocketMessagesRef = useRef(new Set());
   const [screen, setScreen] = useState("landing");
   const [stream, setStream] = useState(null);
   const [session, setSession] = useState(null);
   const [question, setQuestion] = useState(null);
   const [answerText, setAnswerText] = useState("");
+  const [conversationMessages, setConversationMessages] = useState([]);
   const [report, setReport] = useState(null);
   const [reportError, setReportError] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const [transcriptOpen, setTranscriptOpen] = useState(false);
   const [voiceMessage, setVoiceMessage] = useState("");
   const [streamedAiText, setStreamedAiText] = useState("");
@@ -75,13 +86,31 @@ function App() {
   }, [stream, screen]);
 
   useEffect(() => {
-    if (screen === "live" && question?.question_text) {
-      speakQuestion(question.question_text);
-    }
-  }, [question, screen]);
+    questionRef.current = question;
+  }, [question]);
 
   useEffect(() => {
-    return () => websocketRef.current?.close();
+    setupRef.current = setup;
+  }, [setup]);
+
+  useEffect(() => {
+    sessionRef.current = session;
+  }, [session]);
+
+  useEffect(() => {
+    isRecordingRef.current = isRecording;
+  }, [isRecording]);
+
+  useEffect(() => {
+    isSpeakingRef.current = isSpeaking;
+  }, [isSpeaking]);
+
+  useEffect(() => {
+    return () => {
+      window.speechSynthesis?.cancel();
+      recognitionRef.current?.stop();
+      websocketRef.current?.close();
+    };
   }, []);
 
   const stepIndex = screenOrder.indexOf(screen);
@@ -96,6 +125,45 @@ function App() {
 
   function updateSetup(field, value) {
     setSetup((current) => ({ ...current, [field]: value }));
+  }
+
+  function appendConversationMessage(message) {
+    setConversationMessages((current) => {
+      if (current.some((item) => item.id === message.id)) return current;
+      return [
+        ...current,
+        {
+          id: message.id ?? createClientId("message"),
+          speaker: message.speaker,
+          text: message.text,
+          isStreaming: Boolean(message.isStreaming),
+        },
+      ];
+    });
+  }
+
+  function appendStreamingMessage(messageId, speaker, chunk) {
+    if (!chunk) return;
+    setConversationMessages((current) => {
+      const existing = current.find((item) => item.id === messageId);
+      if (!existing) {
+        return [
+          ...current,
+          {
+            id: messageId,
+            speaker,
+            text: chunk,
+            isStreaming: true,
+          },
+        ];
+      }
+
+      return current.map((item) =>
+        item.id === messageId
+          ? { ...item, text: `${item.text} ${chunk}`.trim(), isStreaming: true }
+          : item,
+      );
+    });
   }
 
   async function enableMedia() {
@@ -130,9 +198,9 @@ function App() {
       if (!response.ok) throw new Error("Could not create interview session");
       const createdSession = await response.json();
       setSession(createdSession);
-      connectInterviewSocket(createdSession.session_id);
       setStatus("Interview started");
       await requestNextQuestion(createdSession.session_id);
+      connectInterviewSocket(createdSession.session_id);
       setScreen(setup.interviewType === "System Design" ? "system" : "live");
     } catch (caughtError) {
       setError(caughtError.message);
@@ -154,6 +222,14 @@ function App() {
       setQuestion(payload.question);
       setStreamedAiText("");
       setAnswerText("");
+      if (payload.question?.question_text) {
+        appendConversationMessage({
+          id: payload.question.id,
+          speaker: "interviewer",
+          text: payload.question.question_text,
+        });
+        speakQuestion(payload.question.question_text);
+      }
       setStatus(payload.question ? "Answering" : "Interview complete");
       if (!payload.question) setScreen("report");
     } catch (caughtError) {
@@ -169,23 +245,34 @@ function App() {
     }
 
     if (isRecording) {
+      isRecordingRef.current = false;
       mediaRecorderRef.current?.stop();
       recognitionRef.current?.stop();
+      recognitionRef.current = null;
       setIsRecording(false);
       setIsListening(false);
       setStatus("Recording saved locally");
       return;
     }
 
+    if (isSpeakingRef.current) {
+      window.speechSynthesis?.cancel();
+      isSpeakingRef.current = false;
+      setIsSpeaking(false);
+    }
+
     const recorder = new MediaRecorder(stream);
     mediaRecorderRef.current = recorder;
     recorder.start();
+    isRecordingRef.current = true;
     startSpeechRecognition();
     setIsRecording(true);
     setStatus("Recording answer");
   }
 
   function startSpeechRecognition() {
+    if (recognitionRef.current) return;
+
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
       setVoiceMessage("Speech-to-text is not supported in this browser. Type the transcript.");
@@ -203,11 +290,17 @@ function App() {
       setTranscriptOpen(true);
     };
     recognition.onresult = (event) => {
-      const transcript = Array.from(event.results)
-        .map((result) => result[0].transcript)
-        .join(" ")
-        .trim();
-      setAnswerText(transcript);
+      let finalTranscript = "";
+      let interimTranscript = "";
+      for (let index = 0; index < event.results.length; index += 1) {
+        const result = event.results[index];
+        if (result.isFinal) {
+          finalTranscript += `${result[0].transcript} `;
+        } else {
+          interimTranscript += `${result[0].transcript} `;
+        }
+      }
+      setAnswerText(`${finalTranscript}${interimTranscript}`.trim());
     };
     recognition.onerror = () => {
       setVoiceMessage("Speech recognition paused. You can continue by typing.");
@@ -215,52 +308,95 @@ function App() {
     };
     recognition.onend = () => {
       setIsListening(false);
-      if (isRecording) setVoiceMessage("Speech recognition stopped.");
+      recognitionRef.current = null;
+      if (isRecordingRef.current && !isSpeakingRef.current) {
+        setVoiceMessage("Speech recognition restarted.");
+        window.setTimeout(() => {
+          if (isRecordingRef.current && !isSpeakingRef.current && !recognitionRef.current) {
+            startSpeechRecognition();
+          }
+        }, 400);
+      }
     };
 
     recognitionRef.current = recognition;
-    recognition.start();
+    try {
+      recognition.start();
+    } catch {
+      recognitionRef.current = null;
+      setVoiceMessage("Speech recognition is already starting. Try again in a moment.");
+    }
   }
 
-  function speakQuestion(text = question?.question_text) {
+  function speakQuestion(text = questionRef.current?.question_text) {
     if (!text || !window.speechSynthesis) {
       setVoiceMessage("Text-to-speech is not supported in this browser.");
       return;
     }
 
+    recognitionRef.current?.stop();
+    isSpeakingRef.current = true;
+    setIsSpeaking(true);
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = "en-IN";
-    utterance.rate = setup.personality === "FAANG pressure" ? 1.06 : 0.96;
-    utterance.pitch = setup.personality === "Friendly" ? 1.04 : 0.94;
+    utterance.rate = setupRef.current?.personality === "FAANG pressure" ? 1.06 : 0.96;
+    utterance.pitch = setupRef.current?.personality === "Friendly" ? 1.04 : 0.94;
+    utterance.onstart = () => {
+      setIsSpeaking(true);
+      setVoiceMessage("Interviewer is speaking.");
+    };
+    utterance.onend = () => {
+      isSpeakingRef.current = false;
+      setIsSpeaking(false);
+      setVoiceMessage("Your turn to answer.");
+    };
+    utterance.onerror = () => {
+      isSpeakingRef.current = false;
+      setIsSpeaking(false);
+      setVoiceMessage("Voice playback stopped.");
+    };
     window.speechSynthesis.speak(utterance);
-    setVoiceMessage("Interviewer question is playing.");
   }
 
   async function submitTranscript() {
-    if (!session || !question || !answerText.trim()) return;
+    const activeSession = sessionRef.current;
+    const activeQuestion = questionRef.current;
+    const transcript = answerText.trim();
+    if (!activeSession || !activeQuestion || !transcript) return;
     setError("");
     setStatus("Submitting answer");
+    const clientEventId = createClientId("transcript");
     try {
       const response = await fetch(
-        `${API_BASE_URL}/live-interviews/sessions/${session.session_id}/transcript`,
+        `${API_BASE_URL}/live-interviews/sessions/${activeSession.session_id}/transcript`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            question_id: question.id,
-            transcript: answerText,
+            question_id: activeQuestion.id,
+            transcript,
             duration_seconds: 60,
           }),
         },
       );
       if (!response.ok) throw new Error("Could not submit answer transcript");
       await response.json();
-      sendInterviewEvent("transcript_chunk", {
-        question: question.question_text,
-        transcript: answerText,
-        personality: setup.personality,
+      appendConversationMessage({
+        id: clientEventId,
+        speaker: "candidate",
+        text: transcript,
       });
+      sendInterviewEvent(
+        "transcript_chunk",
+        {
+          question: activeQuestion.question_text,
+          transcript,
+          personality: setupRef.current?.personality,
+        },
+        clientEventId,
+      );
+      setAnswerText("");
       setStatus("Answer queued for evaluation");
       await loadReport();
     } catch (caughtError) {
@@ -271,20 +407,38 @@ function App() {
 
   function connectInterviewSocket(sessionId) {
     websocketRef.current?.close();
+    processedSocketMessagesRef.current = new Set();
     const wsBaseUrl = API_BASE_URL.replace(/^http/, "ws");
     const socket = new WebSocket(`${wsBaseUrl}/live-interviews/sessions/${sessionId}/ws`);
     websocketRef.current = socket;
     socket.onopen = () => setStatus("Realtime interview connected");
     socket.onmessage = (message) => {
       const event = JSON.parse(message.data);
+      const messageId = event.event_id ?? event.payload?.message_id;
+      if (messageId && processedSocketMessagesRef.current.has(`${event.type}:${messageId}:${event.payload?.text ?? ""}`)) {
+        return;
+      }
+      if (messageId) {
+        processedSocketMessagesRef.current.add(`${event.type}:${messageId}:${event.payload?.text ?? ""}`);
+      }
+
       if (event.type === "ai_response_chunk") {
-        setStreamedAiText((current) => `${current} ${event.payload.text}`.trim());
+        const text = event.payload.text ?? "";
+        if (!text) return;
+        setStreamedAiText((current) => `${current} ${text}`.trim());
+        if (event.payload.message_id) {
+          appendStreamingMessage(
+            event.payload.message_id,
+            event.payload.speaker ?? "interviewer",
+            text,
+          );
+        }
       }
       if (event.type === "followup_question") {
         const followup = event.payload.question;
         setQuestion({
           id: event.payload.question_id,
-          order_index: question?.order_index ?? 0,
+          order_index: questionRef.current?.order_index ?? 0,
           question_text: followup,
           question_type: "follow_up",
           expected_answer_seconds: 90,
@@ -304,20 +458,21 @@ function App() {
     socket.onclose = () => setVoiceMessage("Realtime connection closed.");
   }
 
-  function sendInterviewEvent(type, payload) {
+  function sendInterviewEvent(type, payload, eventId = createClientId(type)) {
     if (websocketRef.current?.readyState !== WebSocket.OPEN) {
       setVoiceMessage("Realtime socket is not connected. REST transcript was still saved.");
       return;
     }
-    websocketRef.current.send(JSON.stringify({ type, payload }));
+    websocketRef.current.send(JSON.stringify({ type, payload, event_id: eventId }));
   }
 
   async function loadReport() {
-    if (!session) return;
+    const activeSession = sessionRef.current;
+    if (!activeSession) return;
     setReportError("");
     try {
       const response = await fetch(
-        `${API_BASE_URL}/live-interviews/sessions/${session.session_id}/report`,
+        `${API_BASE_URL}/live-interviews/sessions/${activeSession.session_id}/report`,
       );
       if (!response.ok) throw new Error("Could not load feedback report");
       setReport(await response.json());
@@ -327,6 +482,15 @@ function App() {
   }
 
   async function enterReport() {
+    sendInterviewEvent("interview_complete", { reason: "candidate_left" });
+    websocketRef.current?.close();
+    recognitionRef.current?.stop();
+    window.speechSynthesis?.cancel();
+    isRecordingRef.current = false;
+    isSpeakingRef.current = false;
+    setIsRecording(false);
+    setIsListening(false);
+    setIsSpeaking(false);
     await loadReport();
     setScreen("report");
   }
@@ -370,8 +534,10 @@ function App() {
           transcriptOpen={transcriptOpen}
           isRecording={isRecording}
           isListening={isListening}
+          isSpeaking={isSpeaking}
           voiceMessage={voiceMessage}
           streamedAiText={streamedAiText}
+          conversationMessages={conversationMessages}
           error={error}
           onToggleTranscript={() => setTranscriptOpen((current) => !current)}
           onAnswerText={setAnswerText}
@@ -396,6 +562,8 @@ function App() {
             setQuestion(null);
             setReport(null);
             setAnswerText("");
+            setConversationMessages([]);
+            setStreamedAiText("");
             setScreen("setup");
           }}
         />
@@ -589,8 +757,10 @@ function LiveInterview({
   transcriptOpen,
   isRecording,
   isListening,
+  isSpeaking,
   voiceMessage,
   streamedAiText,
+  conversationMessages,
   error,
   onToggleTranscript,
   onAnswerText,
@@ -622,14 +792,33 @@ function LiveInterview({
         </div>
       </div>
 
-      <details className="transcript" open={transcriptOpen} onToggle={onToggleTranscript}>
-        <summary>Live transcript</summary>
-        <textarea
-          value={answerText}
-          onChange={(event) => onAnswerText(event.target.value)}
-          placeholder="Speech-to-text will appear here. For now, type or paste the transcript."
-        />
-      </details>
+      <section className="transcript">
+        <button className="transcript-toggle" onClick={onToggleTranscript}>
+          Live transcript
+          <span>{transcriptOpen ? "Hide" : "Show"}</span>
+        </button>
+        {transcriptOpen ? (
+          <div className="transcript-body">
+            <div className="transcript-feed">
+              {conversationMessages.length ? (
+                conversationMessages.map((message) => (
+                  <div className={`transcript-line ${message.speaker}`} key={message.id}>
+                    <strong>{message.speaker === "candidate" ? "You" : "Interviewer"}</strong>
+                    <p>{message.text}</p>
+                  </div>
+                ))
+              ) : (
+                <p className="empty-transcript">Conversation transcript appears here.</p>
+              )}
+            </div>
+            <textarea
+              value={answerText}
+              onChange={(event) => onAnswerText(event.target.value)}
+              placeholder="Speech-to-text appears here while you answer. You can also type."
+            />
+          </div>
+        ) : null}
+      </section>
 
       <div className="candidate-pill">
         <VideoTile stream={stream} videoRef={videoRef} compact />
@@ -640,7 +829,7 @@ function LiveInterview({
       <div className="live-controls">
         <button className="secondary icon-button" onClick={onToggleRecording}>
           {isRecording ? <CircleStop size={18} /> : <Mic size={18} />}
-          {isListening ? "Listening" : isRecording ? "Stop" : "Mic"}
+          {isSpeaking ? "Wait" : isListening ? "Listening" : isRecording ? "Stop" : "Mic"}
         </button>
         <button className="secondary icon-button">
           <Camera size={18} />

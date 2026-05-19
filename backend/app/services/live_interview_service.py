@@ -31,6 +31,7 @@ class LiveInterviewSession:
     questions: list[LiveInterviewQuestion] = field(default_factory=list)
     transcripts: dict[UUID, AnswerTranscriptRequest] = field(default_factory=dict)
     memory: list[dict[str, str]] = field(default_factory=list)
+    processed_event_ids: set[str] = field(default_factory=set)
 
 
 class LiveInterviewService:
@@ -68,6 +69,17 @@ class LiveInterviewService:
     def append_memory(self, session_id: UUID, *, speaker: str, message: str) -> None:
         session = self._get_session(session_id)
         session.memory.append({"speaker": speaker, "message": message})
+
+    def mark_event_processed(self, session_id: UUID, event_id: str | None) -> bool:
+        if not event_id:
+            return True
+
+        session = self._get_session(session_id)
+        if event_id in session.processed_event_ids:
+            return False
+
+        session.processed_event_ids.add(event_id)
+        return True
 
     def add_followup_question(self, session_id: UUID, question_text: str) -> LiveInterviewQuestion:
         session = self._get_session(session_id)
