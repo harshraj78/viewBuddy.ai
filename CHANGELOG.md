@@ -36,6 +36,7 @@ The format follows Keep a Changelog principles, and this project aims to use sem
 - Role, company, skills, project, and resume-summary inputs for interview personalization.
 - Interview planner for session-unique, profile-aware seed question generation.
 - Answer-signal extraction for adaptive follow-up questioning.
+- Stateful interview brain with answer analysis, candidate memory, weak-area tracking, and adaptive interviewer moves.
 
 ### Changed
 
@@ -44,6 +45,8 @@ The format follows Keep a Changelog principles, and this project aims to use sem
 - Live interview UI now uses stable active session/question refs to reduce stale state during follow-ups.
 - Follow-up prompts now include interview context, answer-derived signals, and anti-repetition instructions.
 - CORS setup now keeps local Vite test ports while preserving environment-configured origins.
+- Live interview sessions now start from an opening question plus hidden roadmap instead of treating the entire round as a pre-generated queue.
+- WebSocket follow-ups now use the interview brain's planned intent before phrasing the next interviewer question.
 
 ### Fixed
 

@@ -14,8 +14,10 @@ class AIConversationEngine:
         personality: str,
         memory: list[dict],
         interview_context: dict[str, object] | None = None,
+        planned_move: dict[str, object] | None = None,
     ):
         context = interview_context or {}
+        move = planned_move or {}
         if settings.gemini_api_key:
             try:
                 async for chunk in self._stream_gemini_followup(
@@ -24,6 +26,7 @@ class AIConversationEngine:
                     personality=personality,
                     memory=memory,
                     interview_context=context,
+                    planned_move=move,
                 ):
                     yield chunk
                 return
@@ -36,6 +39,7 @@ class AIConversationEngine:
             personality=personality,
             memory=memory,
             interview_context=context,
+            planned_move=move,
         ):
             yield chunk
 
@@ -47,6 +51,7 @@ class AIConversationEngine:
         personality: str,
         memory: list[dict],
         interview_context: dict[str, object],
+        planned_move: dict[str, object],
     ):
         prompt = self._build_followup_prompt(
             current_question,
@@ -54,6 +59,7 @@ class AIConversationEngine:
             personality,
             memory,
             interview_context,
+            planned_move,
         )
         url = (
             "https://generativelanguage.googleapis.com/v1beta/models/"
@@ -89,7 +95,19 @@ class AIConversationEngine:
         personality: str,
         memory: list[dict],
         interview_context: dict[str, object],
+        planned_move: dict[str, object],
     ):
+        if planned_move.get("question"):
+            response = str(planned_move["question"])
+            if personality == "FAANG pressure":
+                response = f"Be precise. {response}"
+            elif personality == "Strict":
+                response = f"I want the exact reasoning. {response}"
+            for chunk in self._chunk_text(response):
+                await asyncio.sleep(0.05)
+                yield chunk
+            return
+
         lower_transcript = transcript.lower()
         role = str(interview_context.get("target_role", "candidate"))
         company_style = str(interview_context.get("company_style", "product company"))
@@ -168,14 +186,16 @@ class AIConversationEngine:
         personality: str,
         memory: list[dict],
         interview_context: dict[str, object],
+        planned_move: dict[str, object],
     ) -> str:
         return f"""
 You are a professional AI interviewer.
 Personality: {personality}
 
-Ask exactly one concise follow-up question based on the candidate answer.
-Challenge vague responses. Avoid repeating recent questions. Do not give feedback yet.
-Use a natural interviewer transition, then ask the follow-up.
+You are given a planned interviewer move from the Interview Brain.
+Follow the planned intent, but phrase it naturally as a human interviewer.
+Ask exactly one concise next question. Do not give scorecards or feedback yet.
+Challenge vague responses. Avoid repeating recent questions.
 Make the question specific to the candidate's target role, skills, projects, and prior answers.
 If the answer mentions a technology, probe why it was chosen, what failed, how it was measured,
 or how it would scale in production.
@@ -188,6 +208,9 @@ Candidate answer:
 
 Interview context:
 {interview_context}
+
+Planned interviewer move:
+{planned_move}
 
 Recent memory:
 {memory[-6:]}

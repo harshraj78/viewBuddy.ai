@@ -4,6 +4,12 @@ from uuid import UUID, uuid4
 from fastapi import status
 
 from app.ai.evaluators import interview_answer_evaluator
+from app.ai.interview_brain import (
+    AnswerAnalysis,
+    InterviewBrainState,
+    InterviewMove,
+    interview_brain,
+)
 from app.ai.interview_planner import extract_answer_signals, interview_planner
 from app.core.errors import AppError
 from app.schemas.live_interview import (
@@ -30,9 +36,13 @@ class LiveInterviewSession:
     runtime_state: InterviewRuntimeState = InterviewRuntimeState.setup
     current_index: int = 0
     questions: list[LiveInterviewQuestion] = field(default_factory=list)
+    topic_roadmap: list[LiveInterviewQuestion] = field(default_factory=list)
     transcripts: dict[UUID, AnswerTranscriptRequest] = field(default_factory=dict)
     memory: list[dict[str, str]] = field(default_factory=list)
     answer_signals: list[str] = field(default_factory=list)
+    brain_state: InterviewBrainState = field(default_factory=InterviewBrainState)
+    latest_analysis: AnswerAnalysis | None = None
+    latest_move: InterviewMove | None = None
     processed_event_ids: set[str] = field(default_factory=set)
 
 
@@ -42,13 +52,15 @@ class LiveInterviewService:
 
     def start_session(self, request: StartLiveInterviewRequest) -> LiveInterviewSessionResponse:
         session_id = uuid4()
+        planned_questions = interview_planner.generate_seed_questions(
+            request=request,
+            session_seed=str(session_id),
+        )
         session = LiveInterviewSession(
             session_id=session_id,
             request=request,
-            questions=interview_planner.generate_seed_questions(
-                request=request,
-                session_seed=str(session_id),
-            ),
+            questions=planned_questions[:1],
+            topic_roadmap=planned_questions[1:],
         )
         self._sessions[session_id] = session
         return self._to_response(session)
@@ -85,12 +97,46 @@ class LiveInterviewService:
         return {
             **profile,
             "answer_signals": session.answer_signals[-8:],
+            "brain_state": {
+                "candidate_strengths": session.brain_state.candidate_strengths[-8:],
+                "weak_areas": session.brain_state.weak_areas[-8:],
+                "answered_topics": session.brain_state.answered_topics[-8:],
+                "technologies": session.brain_state.technologies[-8:],
+                "average_depth": session.brain_state.average_depth,
+                "average_confidence": session.brain_state.average_confidence,
+                "current_strategy": session.brain_state.current_strategy,
+                "last_interviewer_intent": session.brain_state.last_interviewer_intent,
+            },
             "asked_questions": [
                 item["message"]
                 for item in session.memory
                 if item.get("speaker") == "interviewer"
             ][-8:],
         }
+
+    def process_candidate_answer(
+        self,
+        session_id: UUID,
+        *,
+        current_question: str,
+        transcript: str,
+    ) -> InterviewMove:
+        session = self._get_session(session_id)
+        context = self.get_interview_context(session_id)
+        analysis = interview_brain.analyze_answer(
+            current_question=current_question,
+            transcript=transcript,
+            interview_context=context,
+        )
+        interview_brain.update_state(state=session.brain_state, analysis=analysis)
+        move = interview_brain.plan_next_move(
+            state=session.brain_state,
+            analysis=analysis,
+            interview_context=context,
+        )
+        session.latest_analysis = analysis
+        session.latest_move = move
+        return move
 
     def mark_event_processed(self, session_id: UUID, event_id: str | None) -> bool:
         if not event_id:
@@ -103,17 +149,24 @@ class LiveInterviewService:
         session.processed_event_ids.add(event_id)
         return True
 
-    def add_followup_question(self, session_id: UUID, question_text: str) -> LiveInterviewQuestion:
+    def add_followup_question(
+        self,
+        session_id: UUID,
+        question_text: str,
+        *,
+        question_type: str = "follow_up",
+    ) -> LiveInterviewQuestion:
         session = self._get_session(session_id)
         question = LiveInterviewQuestion(
             id=uuid4(),
             order_index=len(session.questions) + 1,
             question_text=question_text,
-            question_type="follow_up",
+            question_type=question_type,
             expected_answer_seconds=90,
             preparation_seconds=5,
         )
         session.questions.append(question)
+        session.current_index = len(session.questions)
         return question
 
     def next_question(self, session_id: UUID) -> NextQuestionResponse:
@@ -133,6 +186,9 @@ class LiveInterviewService:
                 session.runtime_state,
                 InterviewRuntimeState.questioning,
             )
+
+        if session.current_index >= len(session.questions) and session.topic_roadmap:
+            session.questions.append(session.topic_roadmap.pop(0))
 
         if session.current_index >= len(session.questions):
             session.status = LiveInterviewStatus.completed

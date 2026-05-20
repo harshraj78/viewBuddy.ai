@@ -94,14 +94,23 @@ async def _handle_transcript_chunk(
         speaker="candidate",
         message=transcript,
     )
+    next_move = live_interview_service.process_candidate_answer(
+        session_id,
+        current_question=question_text,
+        transcript=transcript,
+    )
     live_interview_service.transition_runtime_state(session_id, InterviewRuntimeState.follow_up)
     await _send_state(websocket, InterviewRuntimeState.follow_up)
 
-    acknowledgement = _build_acknowledgement(personality, transcript)
     await _send_interviewer_text(
         websocket,
-        acknowledgement,
+        next_move.acknowledgement,
         message_role="acknowledgement",
+        metadata={
+            "move_type": next_move.move_type.value,
+            "rationale": next_move.rationale,
+            "should_interrupt": next_move.should_interrupt,
+        },
     )
     await asyncio.sleep(0.35)
 
@@ -113,6 +122,12 @@ async def _handle_transcript_chunk(
         personality=personality,
         memory=session.memory,
         interview_context=live_interview_service.get_interview_context(session_id),
+        planned_move={
+            "move_type": next_move.move_type.value,
+            "question": next_move.question,
+            "rationale": next_move.rationale,
+            "should_interrupt": next_move.should_interrupt,
+        },
     ):
         chunks.append(chunk)
         await _send_interviewer_text(
@@ -123,9 +138,13 @@ async def _handle_transcript_chunk(
             message_id=stream_message_id,
         )
 
-    followup = " ".join(chunks).strip()
+    followup = " ".join(chunks).strip() or next_move.question
     live_interview_service.append_memory(session_id, speaker="interviewer", message=followup)
-    followup_question = live_interview_service.add_followup_question(session_id, followup)
+    followup_question = live_interview_service.add_followup_question(
+        session_id,
+        followup,
+        question_type=next_move.move_type.value,
+    )
     await _send_event(
         websocket,
         WebSocketEventType.followup_question,
@@ -134,6 +153,9 @@ async def _handle_transcript_chunk(
             "question_id": str(followup_question.id),
             "question_type": followup_question.question_type,
             "message_id": str(uuid4()),
+            "move_type": next_move.move_type.value,
+            "rationale": next_move.rationale,
+            "should_interrupt": next_move.should_interrupt,
         },
     )
 
@@ -168,31 +190,23 @@ async def _send_interviewer_text(
     message_role: str,
     is_final: bool = False,
     message_id: str | None = None,
+    metadata: dict | None = None,
 ) -> None:
+    payload = {
+        "message_id": message_id or str(uuid4()),
+        "speaker": "interviewer",
+        "message_role": message_role,
+        "text": text,
+        "is_final": is_final,
+    }
+    if metadata:
+        payload.update(metadata)
+
     await _send_event(
         websocket,
         WebSocketEventType.ai_response_chunk,
-        {
-            "message_id": message_id or str(uuid4()),
-            "speaker": "interviewer",
-            "message_role": message_role,
-            "text": text,
-            "is_final": is_final,
-        },
+        payload,
     )
-
-
-def _build_acknowledgement(personality: str, transcript: str) -> str:
-    if len(transcript.split()) < 25:
-        base = "I need a little more specificity there."
-    else:
-        base = "Okay, I am going to probe one part of that answer."
-
-    if personality == "FAANG pressure":
-        return f"{base} Keep the next answer crisp and concrete."
-    if personality == "Strict":
-        return f"{base} Focus on implementation details."
-    return f"{base} Take a moment, then walk me through the details."
 
 
 async def _send_event(websocket: WebSocket, event_type: WebSocketEventType, payload: dict) -> None:
