@@ -22,6 +22,7 @@ This file tracks project progress, architecture decisions, learning notes, bugs,
 - Realtime interview stability improved with idempotent WebSocket transcript events, safer state transitions, and duplicate-message protection.
 - Live transcript UX now separates interviewer and candidate turns with collapsible transcript history.
 - Browser voice flow improved to prevent overlapping speech synthesis and safely restart speech recognition during answer capture.
+- Interview personalization improved with role, company style, skills, project highlights, resume summary, answer signals, and session-unique question planning.
 - Product vision defined.
 - High-level architecture documented.
 - Database and API design drafted.
@@ -80,6 +81,10 @@ MVP must be video-based. Streamlit can remain useful for quick internal dashboar
 - Added frontend stale-state guards for active session, active question, recording state, and speech state.
 - Added collapsible live transcript feed with clear interviewer/candidate separation.
 - Improved browser speech flow so interviewer playback cancels active recognition and candidate recording cancels overlapping playback.
+- Added an interview planner that generates role-specific, project-aware, skill-aware question sets instead of one fixed script.
+- Added setup inputs for candidate skills, project highlights, and resume summary to feed personalization.
+- Added answer-signal extraction so follow-up questions can adapt to technologies and production concerns mentioned during the interview.
+- Expanded Gemini follow-up prompting with interview context, prior questions, and anti-repetition guidance.
 - Created live interview API endpoints:
   - `POST /api/v1/live-interviews/sessions`
   - `GET /api/v1/live-interviews/sessions/{session_id}`

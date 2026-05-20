@@ -26,6 +26,12 @@ async def test_fallback_conversation_engine_generates_cache_followup() -> None:
             transcript="I used Redis caching to reduce API latency.",
             personality="Strict",
             memory=[],
+            interview_context={
+                "target_role": "Backend Engineer",
+                "company_style": "Startup",
+                "skills": ["Redis", "FastAPI"],
+                "projects": ["ViewBuddy.ai"],
+            },
         )
     ]
 

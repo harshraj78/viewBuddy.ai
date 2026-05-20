@@ -12,6 +12,9 @@ def test_live_interview_session_flow_accepts_transcript() -> None:
             "target_role": "AI Engineer",
             "mode": "technical",
             "difficulty": "intermediate",
+            "target_company": "Indian Product",
+            "candidate_skills": ["FastAPI", "PostgreSQL", "RAG"],
+            "project_highlights": ["AI Interview Copilot"],
             "question_count": 2,
         },
     )
@@ -26,6 +29,7 @@ def test_live_interview_session_flow_accepts_transcript() -> None:
     assert next_response.status_code == 200
     question = next_response.json()["question"]
     assert question["question_text"]
+    assert "AI Interview Copilot" in question["question_text"]
 
     transcript_response = client.post(
         f"/api/v1/live-interviews/sessions/{session['session_id']}/transcript",
@@ -52,4 +56,3 @@ def test_live_interview_session_flow_accepts_transcript() -> None:
     assert report["communication"]["score"] > 0
     assert report["technical"]["score"] > 0
     assert report["replay"][0]["question_id"] == question["id"]
-

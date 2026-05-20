@@ -112,6 +112,7 @@ async def _handle_transcript_chunk(
         transcript=transcript,
         personality=personality,
         memory=session.memory,
+        interview_context=live_interview_service.get_interview_context(session_id),
     ):
         chunks.append(chunk)
         await _send_interviewer_text(

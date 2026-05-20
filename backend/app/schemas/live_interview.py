@@ -49,6 +49,9 @@ class StartLiveInterviewRequest(BaseModel):
     difficulty: InterviewDifficulty = InterviewDifficulty.intermediate
     target_company: str | None = Field(default=None, max_length=120)
     resume_id: UUID | None = None
+    candidate_skills: list[str] = Field(default_factory=list, max_length=12)
+    project_highlights: list[str] = Field(default_factory=list, max_length=8)
+    resume_summary: str | None = Field(default=None, max_length=1500)
     question_count: int = Field(default=5, ge=1, le=12)
 
 

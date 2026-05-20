@@ -77,6 +77,9 @@ function App() {
     companyStyle: "Indian Product",
     personality: "Friendly",
     resumeName: "",
+    skillsText: "FastAPI, PostgreSQL, LLM apps, RAG, React",
+    projectsText: "AI Interview Copilot, resume-aware mock interview platform",
+    resumeSummary: "",
   });
 
   useEffect(() => {
@@ -192,6 +195,9 @@ function App() {
           mode: setup.interviewType.toLowerCase().replace(" ", "_"),
           difficulty: setup.experience === "Fresher" ? "beginner" : "intermediate",
           target_company: setup.companyStyle,
+          candidate_skills: parseProfileList(setup.skillsText),
+          project_highlights: parseProfileList(setup.projectsText),
+          resume_summary: setup.resumeSummary || setup.resumeName || null,
           question_count: 5,
         }),
       });
@@ -572,6 +578,14 @@ function App() {
   );
 }
 
+function parseProfileList(value) {
+  return value
+    .split(/[,;\n]/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 8);
+}
+
 function ProgressHeader({ screen, stepIndex, status }) {
   return (
     <header className="progress-header">
@@ -669,6 +683,25 @@ function SetupScreen({ setup, interviewerTone, onChange, onNext }) {
         <SelectGroup label="Interview type" value={setup.interviewType} options={interviewTypes} onChange={(value) => onChange("interviewType", value)} />
         <SelectGroup label="Company style" value={setup.companyStyle} options={companyStyles} onChange={(value) => onChange("companyStyle", value)} />
         <SelectGroup label="Personality" value={setup.personality} options={personalities} onChange={(value) => onChange("personality", value)} />
+        <TextAreaGroup
+          label="Skills"
+          value={setup.skillsText}
+          onChange={(value) => onChange("skillsText", value)}
+          placeholder="FastAPI, PostgreSQL, Redis, LLM apps"
+        />
+        <TextAreaGroup
+          label="Project highlights"
+          value={setup.projectsText}
+          onChange={(value) => onChange("projectsText", value)}
+          placeholder="AI Interview Copilot, resume parser, analytics dashboard"
+        />
+        <TextAreaGroup
+          label="Resume summary"
+          value={setup.resumeSummary}
+          onChange={(value) => onChange("resumeSummary", value)}
+          placeholder="Paste 2-3 lines from your resume for more personalized questions."
+          compact
+        />
         <label className="upload-box">
           <FileText size={18} />
           <span>{setup.resumeName || "Upload resume PDF or DOCX"}</span>
@@ -1000,6 +1033,20 @@ function SelectGroup({ label, value, options, onChange }) {
           <option key={option}>{option}</option>
         ))}
       </select>
+    </label>
+  );
+}
+
+function TextAreaGroup({ label, value, placeholder, compact = false, onChange }) {
+  return (
+    <label className="field">
+      <span>{label}</span>
+      <textarea
+        className={compact ? "compact-textarea" : "setup-textarea"}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+      />
     </label>
   );
 }

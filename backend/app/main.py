@@ -15,9 +15,15 @@ def create_app() -> FastAPI:
         openapi_url=f"{settings.api_v1_prefix}/openapi.json",
     )
 
+    dev_cors_origins = [
+        "http://127.0.0.1:5175",
+        "http://localhost:5175",
+        "http://127.0.0.1:5199",
+        "http://localhost:5199",
+    ]
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.backend_cors_origins,
+        allow_origins=[*settings.backend_cors_origins, *dev_cors_origins],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -28,4 +34,3 @@ def create_app() -> FastAPI:
 
 
 app = create_app()
-

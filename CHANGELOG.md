@@ -33,12 +33,17 @@ The format follows Keep a Changelog principles, and this project aims to use sem
 - WebSocket event IDs for idempotent transcript handling.
 - Collapsible live transcript feed with separate interviewer and candidate turns.
 - Browser voice lifecycle handling for one-speaker-at-a-time interview flow.
+- Role, company, skills, project, and resume-summary inputs for interview personalization.
+- Interview planner for session-unique, profile-aware seed question generation.
+- Answer-signal extraction for adaptive follow-up questioning.
 
 ### Changed
 
 - Realtime session startup now avoids racing REST question loading against WebSocket introduction state.
 - Follow-up generation now includes acknowledgement pacing and more natural interviewer transitions.
 - Live interview UI now uses stable active session/question refs to reduce stale state during follow-ups.
+- Follow-up prompts now include interview context, answer-derived signals, and anti-repetition instructions.
+- CORS setup now keeps local Vite test ports while preserving environment-configured origins.
 
 ### Fixed
 

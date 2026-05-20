@@ -13,7 +13,9 @@ class AIConversationEngine:
         transcript: str,
         personality: str,
         memory: list[dict],
+        interview_context: dict[str, object] | None = None,
     ):
+        context = interview_context or {}
         if settings.gemini_api_key:
             try:
                 async for chunk in self._stream_gemini_followup(
@@ -21,6 +23,7 @@ class AIConversationEngine:
                     transcript=transcript,
                     personality=personality,
                     memory=memory,
+                    interview_context=context,
                 ):
                     yield chunk
                 return
@@ -32,6 +35,7 @@ class AIConversationEngine:
             transcript=transcript,
             personality=personality,
             memory=memory,
+            interview_context=context,
         ):
             yield chunk
 
@@ -42,8 +46,15 @@ class AIConversationEngine:
         transcript: str,
         personality: str,
         memory: list[dict],
+        interview_context: dict[str, object],
     ):
-        prompt = self._build_followup_prompt(current_question, transcript, personality, memory)
+        prompt = self._build_followup_prompt(
+            current_question,
+            transcript,
+            personality,
+            memory,
+            interview_context,
+        )
         url = (
             "https://generativelanguage.googleapis.com/v1beta/models/"
             f"{settings.gemini_model}:generateContent?key={settings.gemini_api_key}"
@@ -57,7 +68,7 @@ class AIConversationEngine:
             ],
             "generationConfig": {
                 "temperature": 0.45,
-                "maxOutputTokens": 160,
+                "maxOutputTokens": 180,
             },
         }
 
@@ -77,28 +88,60 @@ class AIConversationEngine:
         transcript: str,
         personality: str,
         memory: list[dict],
+        interview_context: dict[str, object],
     ):
         lower_transcript = transcript.lower()
+        role = str(interview_context.get("target_role", "candidate"))
+        company_style = str(interview_context.get("company_style", "product company"))
+        skills = [str(skill) for skill in interview_context.get("skills", [])]
+        projects = [str(project) for project in interview_context.get("projects", [])]
+        answer_signals = [str(signal) for signal in interview_context.get("answer_signals", [])]
+        primary_skill = skills[0] if skills else "your main technical skill"
+        primary_project = projects[0] if projects else "that project"
         recent_interviewer_questions = [
             item["message"].lower()
             for item in memory[-8:]
             if item.get("speaker") == "interviewer"
         ]
         if "redis" in lower_transcript or "cache" in lower_transcript:
-            response = "What cache invalidation strategy did you use, and how did you test it?"
+            response = (
+                f"For {primary_project}, what cache invalidation strategy did you use, "
+                "and what metric proved it was safe?"
+            )
         elif "api" in lower_transcript or "fastapi" in lower_transcript:
-            response = "How would you handle authentication, rate limits, and failures in that API?"
+            response = (
+                f"As a {role}, why choose that API approach over a simpler framework, "
+                "and how would you handle auth, rate limits, and failure cases?"
+            )
         elif "database" in lower_transcript or "postgres" in lower_transcript:
-            response = "What indexes or schema choices would matter most as usage grows?"
+            response = (
+                f"In {primary_project}, which query or table would become slow first, "
+                "and what index or schema change would you make?"
+            )
+        elif "llm" in lower_transcript or "prompt" in lower_transcript or "rag" in lower_transcript:
+            response = (
+                f"How would you evaluate whether the {primary_skill} AI behavior is actually "
+                "improving candidate outcomes instead of only sounding better?"
+            )
+        elif any(term in lower_transcript for term in ("async", "worker", "queue")):
+            response = (
+                f"What should run synchronously versus in the background for a {company_style} "
+                "production launch, and how would you recover failed jobs?"
+            )
         elif len(transcript.split()) < 35:
             response = (
-                "Your answer is a little high level. "
-                "Can you give me one concrete implementation detail?"
+                f"Your answer is still high level for a {role} round. "
+                f"Give me one concrete implementation detail from {primary_project}."
+            )
+        elif answer_signals:
+            response = (
+                f"You mentioned {answer_signals[-1]}. What was the hardest edge case there, "
+                "and how did you know your solution worked?"
             )
         else:
             response = (
-                "Good. Now tell me the main tradeoff you made and "
-                "what you would improve next."
+                f"Good. Now connect that answer to {primary_skill}: what tradeoff did you make, "
+                "and what would you improve if you rebuilt it?"
             )
 
         if any(response.lower()[:45] in question for question in recent_interviewer_questions):
@@ -124,6 +167,7 @@ class AIConversationEngine:
         transcript: str,
         personality: str,
         memory: list[dict],
+        interview_context: dict[str, object],
     ) -> str:
         return f"""
 You are a professional AI interviewer.
@@ -132,12 +176,18 @@ Personality: {personality}
 Ask exactly one concise follow-up question based on the candidate answer.
 Challenge vague responses. Avoid repeating recent questions. Do not give feedback yet.
 Use a natural interviewer transition, then ask the follow-up.
+Make the question specific to the candidate's target role, skills, projects, and prior answers.
+If the answer mentions a technology, probe why it was chosen, what failed, how it was measured,
+or how it would scale in production.
 
 Current question:
 {current_question}
 
 Candidate answer:
 {transcript}
+
+Interview context:
+{interview_context}
 
 Recent memory:
 {memory[-6:]}

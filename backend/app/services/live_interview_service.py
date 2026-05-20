@@ -4,6 +4,7 @@ from uuid import UUID, uuid4
 from fastapi import status
 
 from app.ai.evaluators import interview_answer_evaluator
+from app.ai.interview_planner import extract_answer_signals, interview_planner
 from app.core.errors import AppError
 from app.schemas.live_interview import (
     AnswerTranscriptRequest,
@@ -31,6 +32,7 @@ class LiveInterviewSession:
     questions: list[LiveInterviewQuestion] = field(default_factory=list)
     transcripts: dict[UUID, AnswerTranscriptRequest] = field(default_factory=dict)
     memory: list[dict[str, str]] = field(default_factory=list)
+    answer_signals: list[str] = field(default_factory=list)
     processed_event_ids: set[str] = field(default_factory=set)
 
 
@@ -43,7 +45,10 @@ class LiveInterviewService:
         session = LiveInterviewSession(
             session_id=session_id,
             request=request,
-            questions=self._generate_seed_questions(request),
+            questions=interview_planner.generate_seed_questions(
+                request=request,
+                session_seed=str(session_id),
+            ),
         )
         self._sessions[session_id] = session
         return self._to_response(session)
@@ -69,6 +74,23 @@ class LiveInterviewService:
     def append_memory(self, session_id: UUID, *, speaker: str, message: str) -> None:
         session = self._get_session(session_id)
         session.memory.append({"speaker": speaker, "message": message})
+        if speaker == "candidate":
+            for signal in extract_answer_signals(message):
+                if signal not in session.answer_signals:
+                    session.answer_signals.append(signal)
+
+    def get_interview_context(self, session_id: UUID) -> dict[str, object]:
+        session = self._get_session(session_id)
+        profile = interview_planner.build_profile(session.request).as_prompt_context()
+        return {
+            **profile,
+            "answer_signals": session.answer_signals[-8:],
+            "asked_questions": [
+                item["message"]
+                for item in session.memory
+                if item.get("speaker") == "interviewer"
+            ][-8:],
+        }
 
     def mark_event_processed(self, session_id: UUID, event_id: str | None) -> bool:
         if not event_id:
@@ -190,54 +212,6 @@ class LiveInterviewService:
             websocket_path=f"/api/v1/live-interviews/sessions/{session.session_id}/ws",
             current_question=current_question,
         )
-
-    def _generate_seed_questions(
-        self,
-        request: StartLiveInterviewRequest,
-    ) -> list[LiveInterviewQuestion]:
-        base_questions = [
-            (
-                "project_deep_dive",
-                (
-                    "Walk me through one project that proves you are ready for a "
-                    f"{request.target_role} role."
-                ),
-            ),
-            (
-                "technical_depth",
-                (
-                    "Explain how you would design the AI evaluation pipeline for "
-                    "this interview product."
-                ),
-            ),
-            (
-                "tradeoffs",
-                "What tradeoffs would you consider when choosing between OpenAI, Groq, and Gemini?",
-            ),
-            (
-                "production_readiness",
-                "How would you make an LLM-powered interview system reliable in production?",
-            ),
-            (
-                "behavioral",
-                "Tell me about a time you had to learn a difficult technical topic quickly.",
-            ),
-        ]
-
-        return [
-            LiveInterviewQuestion(
-                id=uuid4(),
-                order_index=index,
-                question_type=question_type,
-                question_text=question_text,
-                preparation_seconds=10,
-                expected_answer_seconds=120,
-            )
-            for index, (question_type, question_text) in enumerate(
-                base_questions[: request.question_count],
-                start=1,
-            )
-        ]
 
     def _build_replay(self, session: LiveInterviewSession) -> list[TranscriptReplayItem]:
         questions_by_id = {question.id: question for question in session.questions}
