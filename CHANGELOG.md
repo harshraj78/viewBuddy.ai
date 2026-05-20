@@ -37,6 +37,9 @@ The format follows Keep a Changelog principles, and this project aims to use sem
 - Interview planner for session-unique, profile-aware seed question generation.
 - Answer-signal extraction for adaptive follow-up questioning.
 - Stateful interview brain with answer analysis, candidate memory, weak-area tracking, and adaptive interviewer moves.
+- OpenAI-compatible local/vLLM model client for open-source interviewer inference.
+- Agent module boundaries for analyzer, strategist, memory manager, and interviewer response generation.
+- Open-source LLM architecture documentation with vLLM and fine-tuning direction.
 
 ### Changed
 
@@ -47,6 +50,7 @@ The format follows Keep a Changelog principles, and this project aims to use sem
 - CORS setup now keeps local Vite test ports while preserving environment-configured origins.
 - Live interview sessions now start from an opening question plus hidden roadmap instead of treating the entire round as a pre-generated queue.
 - WebSocket follow-ups now use the interview brain's planned intent before phrasing the next interviewer question.
+- Live interviewer response generation now routes through a swappable model client while preserving deterministic fallback behavior.
 
 ### Fixed
 

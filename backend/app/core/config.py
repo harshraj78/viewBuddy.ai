@@ -35,10 +35,14 @@ class Settings(BaseSettings):
     max_resume_file_mb: int = 10
 
     llm_provider: str = "openai"
+    interview_llm_provider: str = "fallback"
     openai_api_key: str | None = None
     openai_model: str = "gpt-4.1-mini"
     gemini_api_key: str | None = None
     gemini_model: str = "gemini-2.5-flash"
+    local_llm_base_url: str = "http://localhost:8001/v1"
+    local_llm_api_key: str = "EMPTY"
+    local_llm_model: str = "interview-llm"
     ai_evaluation_mode: str = "fallback"
     llm_request_timeout_seconds: int = 60
     llm_max_retries: int = 3

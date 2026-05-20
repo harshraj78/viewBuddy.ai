@@ -1,7 +1,7 @@
 import asyncio
 
-import httpx
-
+from app.ai.agents.interviewer_agent import interviewer_agent
+from app.ai.models import LLMClientError
 from app.core.config import settings
 
 
@@ -18,9 +18,9 @@ class AIConversationEngine:
     ):
         context = interview_context or {}
         move = planned_move or {}
-        if settings.gemini_api_key:
+        if settings.interview_llm_provider.lower() != "fallback":
             try:
-                async for chunk in self._stream_gemini_followup(
+                async for chunk in interviewer_agent.stream_response(
                     current_question=current_question,
                     transcript=transcript,
                     personality=personality,
@@ -30,7 +30,7 @@ class AIConversationEngine:
                 ):
                     yield chunk
                 return
-            except (httpx.HTTPError, KeyError, TypeError, ValueError):
+            except LLMClientError:
                 pass
 
         async for chunk in self._stream_fallback_followup(
@@ -41,50 +41,6 @@ class AIConversationEngine:
             interview_context=context,
             planned_move=move,
         ):
-            yield chunk
-
-    async def _stream_gemini_followup(
-        self,
-        *,
-        current_question: str,
-        transcript: str,
-        personality: str,
-        memory: list[dict],
-        interview_context: dict[str, object],
-        planned_move: dict[str, object],
-    ):
-        prompt = self._build_followup_prompt(
-            current_question,
-            transcript,
-            personality,
-            memory,
-            interview_context,
-            planned_move,
-        )
-        url = (
-            "https://generativelanguage.googleapis.com/v1beta/models/"
-            f"{settings.gemini_model}:generateContent?key={settings.gemini_api_key}"
-        )
-        payload = {
-            "contents": [
-                {
-                    "role": "user",
-                    "parts": [{"text": prompt}],
-                }
-            ],
-            "generationConfig": {
-                "temperature": 0.45,
-                "maxOutputTokens": 180,
-            },
-        }
-
-        async with httpx.AsyncClient(timeout=settings.llm_request_timeout_seconds) as client:
-            response = await client.post(url, json=payload)
-            response.raise_for_status()
-
-        text = response.json()["candidates"][0]["content"]["parts"][0]["text"]
-        for chunk in self._chunk_text(text):
-            await asyncio.sleep(0)
             yield chunk
 
     async def _stream_fallback_followup(
@@ -178,43 +134,6 @@ class AIConversationEngine:
         for chunk in self._chunk_text(response):
             await asyncio.sleep(0.05)
             yield chunk
-
-    def _build_followup_prompt(
-        self,
-        current_question: str,
-        transcript: str,
-        personality: str,
-        memory: list[dict],
-        interview_context: dict[str, object],
-        planned_move: dict[str, object],
-    ) -> str:
-        return f"""
-You are a professional AI interviewer.
-Personality: {personality}
-
-You are given a planned interviewer move from the Interview Brain.
-Follow the planned intent, but phrase it naturally as a human interviewer.
-Ask exactly one concise next question. Do not give scorecards or feedback yet.
-Challenge vague responses. Avoid repeating recent questions.
-Make the question specific to the candidate's target role, skills, projects, and prior answers.
-If the answer mentions a technology, probe why it was chosen, what failed, how it was measured,
-or how it would scale in production.
-
-Current question:
-{current_question}
-
-Candidate answer:
-{transcript}
-
-Interview context:
-{interview_context}
-
-Planned interviewer move:
-{planned_move}
-
-Recent memory:
-{memory[-6:]}
-"""
 
     def _chunk_text(self, text: str, size: int = 18) -> list[str]:
         words = text.split()

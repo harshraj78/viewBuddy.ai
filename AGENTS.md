@@ -24,6 +24,7 @@ This file tracks project progress, architecture decisions, learning notes, bugs,
 - Browser voice flow improved to prevent overlapping speech synthesis and safely restart speech recognition during answer capture.
 - Interview personalization improved with role, company style, skills, project highlights, resume summary, answer signals, and session-unique question planning.
 - Stateful interview brain added to analyze each answer, track candidate strengths/weaknesses, choose interviewer intent, and drive adaptive next moves.
+- Open-source LLM architecture started with swappable local/vLLM model client and explicit interviewer/analyzer/strategist/memory agents.
 - Product vision defined.
 - High-level architecture documented.
 - Database and API design drafted.
@@ -89,6 +90,10 @@ MVP must be video-based. Streamlit can remain useful for quick internal dashboar
 - Added answer analysis for vagueness, confidence, memorized-sounding responses, missing tradeoffs, missing metrics, and missing failure modes.
 - Added dynamic interviewer moves: clarify, deepen, challenge, implementation, scaling, debugging, tradeoff, behavioral, and switch-topic.
 - Changed active interview flow to start with an opening question and keep only a hidden topic roadmap while live conversation drives the next question.
+- Added OpenAI-compatible local model support for vLLM at `/v1/chat/completions`.
+- Added model router settings for `INTERVIEW_LLM_PROVIDER`, `LOCAL_LLM_BASE_URL`, `LOCAL_LLM_MODEL`, and `LOCAL_LLM_API_KEY`.
+- Split realtime reasoning into agent boundaries: Candidate Analyzer, Follow-up Strategist, Memory Manager, and Interviewer Agent.
+- Created `docs/OPEN_SOURCE_LLM_ARCHITECTURE.md` with vLLM serving flow, model swap boundary, and fine-tuning data direction.
 - Created live interview API endpoints:
   - `POST /api/v1/live-interviews/sessions`
   - `GET /api/v1/live-interviews/sessions/{session_id}`
@@ -110,7 +115,9 @@ MVP must be video-based. Streamlit can remain useful for quick internal dashboar
 - Replace deterministic MVP evaluator with LLM rubric evaluation once provider keys are configured.
 - Add LLM call logging for provider, model, latency, token usage, and errors.
 - Persist WebSocket transcript and state transitions into PostgreSQL-backed `interview_messages`.
-- Implement first LLM provider abstraction.
+- Add LLM call logging for local/vLLM interviewer responses.
+- Add dataset export pipeline for fine-tuning examples from interview turns.
+- Add local model health endpoint and frontend indicator for local LLM availability.
 - Implement question generation and answer evaluation endpoints.
 - Build the production candidate-facing video interview MVP.
 - Add API and service tests.

@@ -3,14 +3,16 @@ from uuid import UUID, uuid4
 
 from fastapi import status
 
+from app.ai.agents.analyzer_agent import candidate_analyzer_agent
+from app.ai.agents.memory_agent import memory_manager_agent
+from app.ai.agents.strategist_agent import followup_strategist_agent
 from app.ai.evaluators import interview_answer_evaluator
 from app.ai.interview_brain import (
     AnswerAnalysis,
     InterviewBrainState,
     InterviewMove,
-    interview_brain,
 )
-from app.ai.interview_planner import extract_answer_signals, interview_planner
+from app.ai.interview_planner import interview_planner
 from app.core.errors import AppError
 from app.schemas.live_interview import (
     AnswerTranscriptRequest,
@@ -87,9 +89,10 @@ class LiveInterviewService:
         session = self._get_session(session_id)
         session.memory.append({"speaker": speaker, "message": message})
         if speaker == "candidate":
-            for signal in extract_answer_signals(message):
-                if signal not in session.answer_signals:
-                    session.answer_signals.append(signal)
+            memory_manager_agent.update_answer_signals(
+                existing=session.answer_signals,
+                transcript=message,
+            )
 
     def get_interview_context(self, session_id: UUID) -> dict[str, object]:
         session = self._get_session(session_id)
@@ -123,13 +126,12 @@ class LiveInterviewService:
     ) -> InterviewMove:
         session = self._get_session(session_id)
         context = self.get_interview_context(session_id)
-        analysis = interview_brain.analyze_answer(
+        analysis = candidate_analyzer_agent.analyze(
             current_question=current_question,
             transcript=transcript,
             interview_context=context,
         )
-        interview_brain.update_state(state=session.brain_state, analysis=analysis)
-        move = interview_brain.plan_next_move(
+        move = followup_strategist_agent.update_and_plan(
             state=session.brain_state,
             analysis=analysis,
             interview_context=context,
