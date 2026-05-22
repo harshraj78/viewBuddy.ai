@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: viewbuddy-ai-backend
+    env: docker
+    plan: free
+    healthCheckPath: /api/v1/health
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: "false"
+      - key: API_V1_PREFIX
+        value: /api/v1

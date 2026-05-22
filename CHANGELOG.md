@@ -42,6 +42,8 @@ The format follows Keep a Changelog principles, and this project aims to use sem
 - Open-source LLM architecture documentation with vLLM and fine-tuning direction.
 - AI provider status endpoint that confirms active provider and whether Gemini is configured without exposing secrets.
 - AI-powered interview planner for first question and hidden roadmap generation.
+- Deployment configs for Vercel frontend and Railway/Render backend.
+- MVP deployment guide with backend/frontend env variables and smoke tests.
 
 ### Changed
 
@@ -55,6 +57,7 @@ The format follows Keep a Changelog principles, and this project aims to use sem
 - Live interviewer response generation now routes through a swappable model client while preserving deterministic fallback behavior.
 - Settings now load `.env` from both project root and `backend/.env` so local backend startup is less fragile.
 - Live interview session creation now attempts LLM-generated question planning before deterministic fallback.
+- Backend Docker startup now respects cloud platform `PORT`.
 
 ### Fixed
 

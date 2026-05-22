@@ -27,6 +27,7 @@ This file tracks project progress, architecture decisions, learning notes, bugs,
 - Open-source LLM architecture started with swappable local/vLLM model client and explicit interviewer/analyzer/strategist/memory agents.
 - AI provider diagnostics added so Gemini/local/fallback status can be verified without exposing API keys.
 - AI interview planning now uses Gemini/local LLM first for opening question and hidden roadmap generation, with deterministic fallback.
+- MVP deployment foundation added for Vercel frontend and Railway/Render backend.
 - Product vision defined.
 - High-level architecture documented.
 - Database and API design drafted.
@@ -101,6 +102,9 @@ MVP must be video-based. Streamlit can remain useful for quick internal dashboar
 - Added warning logs when configured LLM providers fail and the system falls back to deterministic mode.
 - Added Interview Planner Agent that generates session-specific opening questions and hidden roadmaps through the configured LLM.
 - Converted live session creation to async so question planning can call Gemini/local model before the first question is served.
+- Added Railway, Render, and Vercel deployment configuration.
+- Added `docs/DEPLOYMENT_MVP.md` with environment variables, smoke tests, CORS notes, and current MVP limitations.
+- Updated backend Docker command to respect platform-provided `PORT`.
 - Created live interview API endpoints:
   - `POST /api/v1/live-interviews/sessions`
   - `GET /api/v1/live-interviews/sessions/{session_id}`
@@ -125,6 +129,7 @@ MVP must be video-based. Streamlit can remain useful for quick internal dashboar
 - Add LLM call logging for local/vLLM interviewer responses.
 - Add dataset export pipeline for fine-tuning examples from interview turns.
 - Add local model health endpoint and frontend indicator for local LLM availability.
+- Persist live interview sessions to PostgreSQL before scaling beyond single-instance deployment.
 - Implement question generation and answer evaluation endpoints.
 - Build the production candidate-facing video interview MVP.
 - Add API and service tests.
