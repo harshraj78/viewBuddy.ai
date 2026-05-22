@@ -1,9 +1,11 @@
 from fastapi.testclient import TestClient
 
+from app.core.config import settings
 from app.main import app
 
 
-def test_live_interview_session_flow_accepts_transcript() -> None:
+def test_live_interview_session_flow_accepts_transcript(monkeypatch) -> None:
+    monkeypatch.setattr(settings, "interview_llm_provider", "fallback")
     client = TestClient(app)
 
     create_response = client.post(

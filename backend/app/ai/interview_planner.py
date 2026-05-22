@@ -9,6 +9,12 @@ from app.schemas.live_interview import LiveInterviewQuestion, StartLiveInterview
 
 
 @dataclass(frozen=True)
+class PlannedQuestion:
+    question_type: str
+    question_text: str
+
+
+@dataclass(frozen=True)
 class InterviewProfile:
     target_role: str
     mode: str
@@ -75,6 +81,23 @@ class InterviewPlanner:
                 expected_answer_seconds=120 if question_type != "behavioral_signal" else 90,
             )
             for index, (question_type, question_text) in enumerate(selected_specs, start=1)
+        ]
+
+    def build_questions_from_plan(
+        self,
+        *,
+        planned_questions: list[PlannedQuestion],
+    ) -> list[LiveInterviewQuestion]:
+        return [
+            LiveInterviewQuestion(
+                id=uuid4(),
+                order_index=index,
+                question_type=planned.question_type,
+                question_text=planned.question_text,
+                preparation_seconds=10 if index == 1 else 5,
+                expected_answer_seconds=120 if planned.question_type != "behavioral" else 90,
+            )
+            for index, planned in enumerate(planned_questions, start=1)
         ]
 
     def _opening_question(self, profile: InterviewProfile) -> tuple[str, str]:

@@ -26,6 +26,7 @@ This file tracks project progress, architecture decisions, learning notes, bugs,
 - Stateful interview brain added to analyze each answer, track candidate strengths/weaknesses, choose interviewer intent, and drive adaptive next moves.
 - Open-source LLM architecture started with swappable local/vLLM model client and explicit interviewer/analyzer/strategist/memory agents.
 - AI provider diagnostics added so Gemini/local/fallback status can be verified without exposing API keys.
+- AI interview planning now uses Gemini/local LLM first for opening question and hidden roadmap generation, with deterministic fallback.
 - Product vision defined.
 - High-level architecture documented.
 - Database and API design drafted.
@@ -98,6 +99,8 @@ MVP must be video-based. Streamlit can remain useful for quick internal dashboar
 - Added `/api/v1/ai/status` for active interview provider diagnostics.
 - Updated settings loading to read both project-root `.env` and `backend/.env` regardless of backend working directory.
 - Added warning logs when configured LLM providers fail and the system falls back to deterministic mode.
+- Added Interview Planner Agent that generates session-specific opening questions and hidden roadmaps through the configured LLM.
+- Converted live session creation to async so question planning can call Gemini/local model before the first question is served.
 - Created live interview API endpoints:
   - `POST /api/v1/live-interviews/sessions`
   - `GET /api/v1/live-interviews/sessions/{session_id}`

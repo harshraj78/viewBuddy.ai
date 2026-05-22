@@ -20,8 +20,8 @@ router = APIRouter(prefix="/live-interviews", tags=["live interviews"])
     response_model=LiveInterviewSessionResponse,
     status_code=status.HTTP_201_CREATED,
 )
-def start_live_interview(request: StartLiveInterviewRequest) -> LiveInterviewSessionResponse:
-    return live_interview_service.start_session(request)
+async def start_live_interview(request: StartLiveInterviewRequest) -> LiveInterviewSessionResponse:
+    return await live_interview_service.start_session(request)
 
 
 @router.get("/sessions/{session_id}", response_model=LiveInterviewSessionResponse)

@@ -5,6 +5,7 @@ from fastapi import status
 
 from app.ai.agents.analyzer_agent import candidate_analyzer_agent
 from app.ai.agents.memory_agent import memory_manager_agent
+from app.ai.agents.planner_agent import interview_planner_agent
 from app.ai.agents.strategist_agent import followup_strategist_agent
 from app.ai.evaluators import interview_answer_evaluator
 from app.ai.interview_brain import (
@@ -13,6 +14,8 @@ from app.ai.interview_brain import (
     InterviewMove,
 )
 from app.ai.interview_planner import interview_planner
+from app.ai.models import LLMClientError
+from app.core.config import settings
 from app.core.errors import AppError
 from app.schemas.live_interview import (
     AnswerTranscriptRequest,
@@ -52,9 +55,12 @@ class LiveInterviewService:
     def __init__(self) -> None:
         self._sessions: dict[UUID, LiveInterviewSession] = {}
 
-    def start_session(self, request: StartLiveInterviewRequest) -> LiveInterviewSessionResponse:
+    async def start_session(
+        self,
+        request: StartLiveInterviewRequest,
+    ) -> LiveInterviewSessionResponse:
         session_id = uuid4()
-        planned_questions = interview_planner.generate_seed_questions(
+        planned_questions = await self._generate_questions(
             request=request,
             session_seed=str(session_id),
         )
@@ -66,6 +72,40 @@ class LiveInterviewService:
         )
         self._sessions[session_id] = session
         return self._to_response(session)
+
+    async def _generate_questions(
+        self,
+        *,
+        request: StartLiveInterviewRequest,
+        session_seed: str,
+    ) -> list[LiveInterviewQuestion]:
+        fallback_questions = interview_planner.generate_seed_questions(
+            request=request,
+            session_seed=session_seed,
+        )
+        if settings.interview_llm_provider.lower() == "fallback":
+            return fallback_questions
+
+        try:
+            profile = interview_planner.build_profile(request)
+            ai_plan = await interview_planner_agent.generate_question_plan(
+                profile=profile,
+                question_count=request.question_count,
+            )
+            ai_questions = interview_planner.build_questions_from_plan(
+                planned_questions=ai_plan,
+            )
+        except LLMClientError:
+            return fallback_questions
+
+        if len(ai_questions) < request.question_count:
+            used = {question.question_text.lower() for question in ai_questions}
+            ai_questions.extend(
+                question
+                for question in fallback_questions
+                if question.question_text.lower() not in used
+            )
+        return ai_questions[: request.question_count]
 
     def get_session(self, session_id: UUID) -> LiveInterviewSessionResponse:
         return self._to_response(self._get_session(session_id))
