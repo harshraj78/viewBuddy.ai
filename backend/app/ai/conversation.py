@@ -1,8 +1,11 @@
 import asyncio
+import logging
 
 from app.ai.agents.interviewer_agent import interviewer_agent
 from app.ai.models import LLMClientError
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 class AIConversationEngine:
@@ -30,8 +33,12 @@ class AIConversationEngine:
                 ):
                     yield chunk
                 return
-            except LLMClientError:
-                pass
+            except LLMClientError as exc:
+                logger.warning(
+                    "Interview LLM provider '%s' failed; using deterministic fallback. Reason: %s",
+                    settings.interview_llm_provider,
+                    exc,
+                )
 
         async for chunk in self._stream_fallback_followup(
             current_question=current_question,

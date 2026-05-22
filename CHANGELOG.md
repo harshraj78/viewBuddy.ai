@@ -40,6 +40,7 @@ The format follows Keep a Changelog principles, and this project aims to use sem
 - OpenAI-compatible local/vLLM model client for open-source interviewer inference.
 - Agent module boundaries for analyzer, strategist, memory manager, and interviewer response generation.
 - Open-source LLM architecture documentation with vLLM and fine-tuning direction.
+- AI provider status endpoint that confirms active provider and whether Gemini is configured without exposing secrets.
 
 ### Changed
 
@@ -51,12 +52,14 @@ The format follows Keep a Changelog principles, and this project aims to use sem
 - Live interview sessions now start from an opening question plus hidden roadmap instead of treating the entire round as a pre-generated queue.
 - WebSocket follow-ups now use the interview brain's planned intent before phrasing the next interviewer question.
 - Live interviewer response generation now routes through a swappable model client while preserving deterministic fallback behavior.
+- Settings now load `.env` from both project root and `backend/.env` so local backend startup is less fragile.
 
 ### Fixed
 
 - Prevented duplicate transcript WebSocket events from generating duplicate follow-up questions.
 - Prevented overlapping browser speech synthesis and microphone recognition during live interviews.
 - Fixed early interview leave flow so sessions can transition to feedback generation cleanly.
+- Fixed Gemini/local model configuration appearing as fallback when Uvicorn is started from the backend directory.
 
 ### Security
 
