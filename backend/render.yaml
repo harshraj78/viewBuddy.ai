@@ -12,3 +12,5 @@ services:
         value: "false"
       - key: API_V1_PREFIX
         value: /api/v1
+      - key: BACKEND_CORS_ORIGIN_REGEX
+        value: https://.*\.vercel\.app

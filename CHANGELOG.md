@@ -44,6 +44,7 @@ The format follows Keep a Changelog principles, and this project aims to use sem
 - AI-powered interview planner for first question and hidden roadmap generation.
 - Deployment configs for Vercel frontend and Railway/Render backend.
 - MVP deployment guide with backend/frontend env variables and smoke tests.
+- CORS regression tests for Vercel-to-Render preflight requests.
 
 ### Changed
 
@@ -58,6 +59,7 @@ The format follows Keep a Changelog principles, and this project aims to use sem
 - Settings now load `.env` from both project root and `backend/.env` so local backend startup is less fragile.
 - Live interview session creation now attempts LLM-generated question planning before deterministic fallback.
 - Backend Docker startup now respects cloud platform `PORT`.
+- CORS origin settings now use comma-separated env parsing that works on Render.
 
 ### Fixed
 
@@ -66,6 +68,8 @@ The format follows Keep a Changelog principles, and this project aims to use sem
 - Fixed early interview leave flow so sessions can transition to feedback generation cleanly.
 - Fixed Gemini/local model configuration appearing as fallback when Uvicorn is started from the backend directory.
 - Fixed initial interview questions still feeling hardcoded even when Gemini was configured.
+- Fixed Render startup failure caused by list parsing for `BACKEND_CORS_ORIGINS`.
+- Fixed Vercel `OPTIONS /api/v1/live-interviews/sessions` preflight returning 400.
 
 ### Security
 

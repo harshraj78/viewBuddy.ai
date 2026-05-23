@@ -30,6 +30,7 @@ LLM_REQUEST_TIMEOUT_SECONDS=60
 LLM_MAX_RETRIES=3
 
 BACKEND_CORS_ORIGINS=https://your-vercel-domain.vercel.app
+BACKEND_CORS_ORIGIN_REGEX=https://.*\.vercel\.app
 JWT_SECRET_KEY=replace_with_long_random_secret
 ```
 
@@ -84,6 +85,7 @@ After Vercel gives you the frontend URL, update backend:
 
 ```env
 BACKEND_CORS_ORIGINS=https://your-vercel-domain.vercel.app
+BACKEND_CORS_ORIGIN_REGEX=https://.*\.vercel\.app
 ```
 
 Redeploy backend.

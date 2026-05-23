@@ -28,6 +28,7 @@ This file tracks project progress, architecture decisions, learning notes, bugs,
 - AI provider diagnostics added so Gemini/local/fallback status can be verified without exposing API keys.
 - AI interview planning now uses Gemini/local LLM first for opening question and hidden roadmap generation, with deterministic fallback.
 - MVP deployment foundation added for Vercel frontend and Railway/Render backend.
+- Render/Vercel CORS deployment issue fixed by switching CORS origins to comma-separated string parsing and allowing Vercel domains by regex.
 - Product vision defined.
 - High-level architecture documented.
 - Database and API design drafted.
@@ -105,6 +106,7 @@ MVP must be video-based. Streamlit can remain useful for quick internal dashboar
 - Added Railway, Render, and Vercel deployment configuration.
 - Added `docs/DEPLOYMENT_MVP.md` with environment variables, smoke tests, CORS notes, and current MVP limitations.
 - Updated backend Docker command to respect platform-provided `PORT`.
+- Added CORS preflight regression tests for Vercel deployment origins.
 - Created live interview API endpoints:
   - `POST /api/v1/live-interviews/sessions`
   - `GET /api/v1/live-interviews/sessions/{session_id}`
