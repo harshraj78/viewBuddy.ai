@@ -29,6 +29,7 @@ This file tracks project progress, architecture decisions, learning notes, bugs,
 - AI interview planning now uses Gemini/local LLM first for opening question and hidden roadmap generation, with deterministic fallback.
 - MVP deployment foundation added for Vercel frontend and Railway/Render backend.
 - Render/Vercel CORS deployment issue fixed by switching CORS origins to comma-separated string parsing and allowing Vercel domains by regex.
+- Candidate-facing UX shifted toward a MockAI-style flow with interview customization, audio-first waiting room, staged live interview room, and interrupt control.
 - Product vision defined.
 - High-level architecture documented.
 - Database and API design drafted.
@@ -107,6 +108,10 @@ MVP must be video-based. Streamlit can remain useful for quick internal dashboar
 - Added `docs/DEPLOYMENT_MVP.md` with environment variables, smoke tests, CORS notes, and current MVP limitations.
 - Updated backend Docker command to respect platform-provided `PORT`.
 - Added CORS preflight regression tests for Vercel deployment origins.
+- Added interviewer customization fields for interviewer type, persona, accent, candidate name, and interview duration.
+- Reworked setup screen into a focused "Customize Your Mock Interview" experience.
+- Reworked waiting room into a large candidate preview plus audio/screen-share setup panel.
+- Reworked live interview UI into two participant panels, phase rail, timer, compact transcript, and interviewer interrupt control.
 - Created live interview API endpoints:
   - `POST /api/v1/live-interviews/sessions`
   - `GET /api/v1/live-interviews/sessions/{session_id}`
@@ -132,6 +137,7 @@ MVP must be video-based. Streamlit can remain useful for quick internal dashboar
 - Add dataset export pipeline for fine-tuning examples from interview turns.
 - Add local model health endpoint and frontend indicator for local LLM availability.
 - Persist live interview sessions to PostgreSQL before scaling beyond single-instance deployment.
+- Improve AI smoothness with incremental transcript events, interruption handling, and better TTS voice selection.
 - Implement question generation and answer evaluation endpoints.
 - Build the production candidate-facing video interview MVP.
 - Add API and service tests.

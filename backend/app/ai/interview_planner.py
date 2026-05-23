@@ -20,6 +20,10 @@ class InterviewProfile:
     mode: str
     difficulty: str
     company_style: str
+    interviewer_name: str
+    interviewer_persona: str
+    interviewer_accent: str
+    interview_duration_minutes: int
     skills: tuple[str, ...]
     projects: tuple[str, ...]
     resume_summary: str | None
@@ -38,6 +42,10 @@ class InterviewProfile:
             "mode": self.mode,
             "difficulty": self.difficulty,
             "company_style": self.company_style,
+            "interviewer_name": self.interviewer_name,
+            "interviewer_persona": self.interviewer_persona,
+            "interviewer_accent": self.interviewer_accent,
+            "interview_duration_minutes": self.interview_duration_minutes,
             "skills": list(self.skills),
             "projects": list(self.projects),
             "resume_summary": self.resume_summary,
@@ -51,6 +59,10 @@ class InterviewPlanner:
             mode=request.mode.value,
             difficulty=request.difficulty.value,
             company_style=request.target_company or "General product company",
+            interviewer_name=request.interviewer_name,
+            interviewer_persona=request.interviewer_persona,
+            interviewer_accent=request.interviewer_accent,
+            interview_duration_minutes=request.interview_duration_minutes,
             skills=tuple(_clean_items(request.candidate_skills)),
             projects=tuple(_clean_items(request.project_highlights)),
             resume_summary=request.resume_summary,

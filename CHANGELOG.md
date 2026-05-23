@@ -45,6 +45,8 @@ The format follows Keep a Changelog principles, and this project aims to use sem
 - Deployment configs for Vercel frontend and Railway/Render backend.
 - MVP deployment guide with backend/frontend env variables and smoke tests.
 - CORS regression tests for Vercel-to-Render preflight requests.
+- MockAI-style interview customization, waiting room, live room, phase rail, and interrupt UI.
+- Interviewer persona/accent/candidate metadata fields for richer AI context.
 
 ### Changed
 
@@ -60,6 +62,7 @@ The format follows Keep a Changelog principles, and this project aims to use sem
 - Live interview session creation now attempts LLM-generated question planning before deterministic fallback.
 - Backend Docker startup now respects cloud platform `PORT`.
 - CORS origin settings now use comma-separated env parsing that works on Render.
+- Candidate-facing flow now prioritizes realistic interview room interaction over dashboard-style layout.
 
 ### Fixed
 

@@ -44,10 +44,15 @@ class MediaRequirement(BaseModel):
 
 
 class StartLiveInterviewRequest(BaseModel):
+    candidate_name: str = Field(default="Candidate", min_length=1, max_length=120)
     target_role: str = Field(default="AI Engineer", min_length=2, max_length=120)
     mode: InterviewMode = InterviewMode.technical
     difficulty: InterviewDifficulty = InterviewDifficulty.intermediate
     target_company: str | None = Field(default=None, max_length=120)
+    interviewer_name: str = Field(default="Sarah", min_length=1, max_length=80)
+    interviewer_persona: str = Field(default="Basic Interviewer", max_length=120)
+    interviewer_accent: str = Field(default="US American", max_length=80)
+    interview_duration_minutes: int = Field(default=45, ge=10, le=120)
     resume_id: UUID | None = None
     candidate_skills: list[str] = Field(default_factory=list, max_length=12)
     project_highlights: list[str] = Field(default_factory=list, max_length=8)
