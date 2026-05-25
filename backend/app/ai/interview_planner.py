@@ -54,6 +54,9 @@ class InterviewProfile:
 
 class InterviewPlanner:
     def build_profile(self, request: StartLiveInterviewRequest) -> InterviewProfile:
+        resume_summary = request.resume_summary
+        derived_skills = _derive_skills_from_resume(resume_summary or "")
+        derived_projects = _derive_projects_from_resume(resume_summary or "")
         return InterviewProfile(
             target_role=request.target_role,
             mode=request.mode.value,
@@ -63,9 +66,9 @@ class InterviewPlanner:
             interviewer_persona=request.interviewer_persona,
             interviewer_accent=request.interviewer_accent,
             interview_duration_minutes=request.interview_duration_minutes,
-            skills=tuple(_clean_items(request.candidate_skills)),
-            projects=tuple(_clean_items(request.project_highlights)),
-            resume_summary=request.resume_summary,
+            skills=tuple(_clean_items(request.candidate_skills) or derived_skills),
+            projects=tuple(_clean_items(request.project_highlights) or derived_projects),
+            resume_summary=resume_summary,
         )
 
     def generate_seed_questions(
@@ -113,6 +116,16 @@ class InterviewPlanner:
         ]
 
     def _opening_question(self, profile: InterviewProfile) -> tuple[str, str]:
+        if profile.resume_summary:
+            return (
+                "resume_deep_dive",
+                (
+                    f"I have your resume context. Let us start with {profile.primary_project}. "
+                    f"What problem did it solve, what did you personally build, and where "
+                    f"{profile.primary_skill} became important?"
+                ),
+            )
+
         return (
             "profile_deep_dive",
             (
@@ -291,6 +304,47 @@ def extract_answer_signals(transcript: str) -> list[str]:
 
 def _clean_items(items: list[str]) -> list[str]:
     return [item.strip() for item in items if item.strip()][:8]
+
+
+def _derive_skills_from_resume(resume_text: str) -> list[str]:
+    lower = resume_text.lower()
+    known_skills = {
+        "FastAPI": ("fastapi",),
+        "React": ("react", "vite", "next.js", "nextjs"),
+        "PostgreSQL": ("postgres", "postgresql", "sql"),
+        "Redis": ("redis", "cache", "caching"),
+        "RAG": ("rag", "retrieval", "embedding", "vector"),
+        "LLM applications": ("llm", "gemini", "openai", "prompt"),
+        "Docker": ("docker", "container"),
+        "WebSockets": ("websocket", "realtime", "real-time"),
+        "Python": ("python",),
+        "JavaScript": ("javascript", "typescript"),
+    }
+    return [
+        label
+        for label, keywords in known_skills.items()
+        if any(keyword in lower for keyword in keywords)
+    ][:8]
+
+
+def _derive_projects_from_resume(resume_text: str) -> list[str]:
+    lines = [
+        line.strip(" -•\t")
+        for line in resume_text.splitlines()
+        if 8 <= len(line.strip()) <= 110
+    ]
+    project_markers = ("project", "built", "developed", "created", "platform", "app")
+    projects = [
+        line
+        for line in lines
+        if any(marker in line.lower() for marker in project_markers)
+    ]
+    if projects:
+        return projects[:4]
+
+    if resume_text.strip():
+        return ["the strongest resume project"]
+    return []
 
 
 def _default_skill_for_role(role: str) -> str:

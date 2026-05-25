@@ -32,6 +32,9 @@ This file tracks project progress, architecture decisions, learning notes, bugs,
 - Candidate-facing UX shifted toward a MockAI-style flow with interview customization, audio-first waiting room, staged live interview room, and interrupt control.
 - Realtime interview loop v2 started with WebSocket transcript deltas, final transcript events, live answer buffering, and lightweight interviewer interruption signals.
 - README reshaped into a recruiter-friendly structure covering problem statement, features, stack, architecture, screenshots, setup, APIs, challenges, and future improvements.
+- Interview setup simplified to a single resume upload profile input, with visible manual skills/project/resume-summary fields removed.
+- Frontend theme system added for light and dark mode, plus responsive mobile improvements.
+- Resume memory strengthened so the backend planner derives skills and project hints from resume context.
 - Product vision defined.
 - High-level architecture documented.
 - Database and API design drafted.
@@ -118,6 +121,9 @@ MVP must be video-based. Streamlit can remain useful for quick internal dashboar
 - Added live transcript buffer handling and deterministic interruption rules for vague or unstructured answers.
 - Updated frontend speech recognition to stream interim transcript deltas and finalize answers when recording stops.
 - Rewrote `README.md` into the requested recruiter-facing project format.
+- Added frontend light/dark theme toggle and improved mobile responsiveness for setup, waiting room, live interview, and report surfaces.
+- Removed visible setup fields for skills, project highlights, and resume summary in favor of one resume upload control.
+- Added backend resume-context skill/project derivation for stronger resume-based interview memory.
 - Created live interview API endpoints:
   - `POST /api/v1/live-interviews/sessions`
   - `GET /api/v1/live-interviews/sessions/{session_id}`
@@ -129,6 +135,7 @@ MVP must be video-based. Streamlit can remain useful for quick internal dashboar
 
 - Implement authentication endpoints.
 - Implement resume upload and parsing pipeline.
+- Gate premium features such as long interviews, company-specific rounds, coding observation, deep resume memory, and advanced analytics behind a subscription plan.
 - Replace in-memory live interview service with PostgreSQL-backed session persistence.
 - Add real speech-to-text provider.
 - Add production text-to-speech provider once moving beyond the zero-cost browser MVP.

@@ -17,16 +17,20 @@ ViewBuddy.ai solves this by simulating a live AI interviewer that:
 ## Features
 
 - MockAI-style interview setup with role, difficulty, interviewer personality, accent, and company style
+- Single resume upload input for personalization instead of noisy manual profile fields
 - Waiting room with camera and microphone checks
 - Live video interview screen with candidate panel, AI interviewer panel, timer, phase rail, interrupt control, and compact transcript
+- Responsive light and dark mode frontend
 - Browser SpeechRecognition for zero-cost speech-to-text
 - Browser speechSynthesis for zero-cost AI interviewer voice
 - FastAPI WebSocket orchestration for live transcript deltas, final answers, AI response chunks, follow-up questions, and interview state transitions
 - Stateful interview brain that tracks strengths, weak areas, answered topics, technologies, confidence, depth, and repetition
 - Gemini/local/fallback model router for AI question planning and follow-up generation
 - Resume/skills/project-aware personalization inputs
+- Resume-context memory that derives likely technologies and project hooks for interview questions
 - Feedback report with communication, technical, behavioral, replay, and improvement suggestions
 - Separate screens for coding round, system design round, and final report
+- Premium roadmap for longer interviews, company-specific simulations, deeper resume memory, coding observation, and advanced analytics
 - Deployment-ready frontend and backend configs for Vercel and Render/Railway
 
 ## Tech Stack
@@ -227,9 +231,7 @@ Example session request:
   "target_company": "Indian Product",
   "interviewer_persona": "Senior Engineer - Strict",
   "interviewer_accent": "Indian English",
-  "candidate_skills": ["FastAPI", "PostgreSQL", "RAG", "React"],
-  "project_highlights": ["AI Interview Copilot"],
-  "resume_summary": "Built a resume-aware mock interview platform with realtime voice flow.",
+  "resume_summary": "Built a resume-aware mock interview platform with FastAPI, React, WebSockets, Gemini, and RAG-style memory.",
   "question_count": 5
 }
 ```
@@ -249,6 +251,7 @@ Example session request:
 - PostgreSQL-backed persistence for live sessions and interview messages
 - Supabase authentication and user profiles
 - Real resume upload, PDF parsing, chunking, embeddings, and pgvector retrieval
+- Subscription plans for premium interview modes and deeper analytics
 - Monaco-based coding round with sandboxed execution
 - Whiteboard canvas for system design interviews
 - WebRTC media transport for richer realtime audio/video architecture

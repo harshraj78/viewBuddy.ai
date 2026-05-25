@@ -77,6 +77,7 @@ class AIConversationEngine:
         skills = [str(skill) for skill in interview_context.get("skills", [])]
         projects = [str(project) for project in interview_context.get("projects", [])]
         answer_signals = [str(signal) for signal in interview_context.get("answer_signals", [])]
+        has_resume_memory = bool(interview_context.get("resume_summary"))
         primary_skill = skills[0] if skills else "your main technical skill"
         primary_project = projects[0] if projects else "that project"
         recent_interviewer_questions = [
@@ -88,6 +89,11 @@ class AIConversationEngine:
             response = (
                 f"For {primary_project}, what cache invalidation strategy did you use, "
                 "and what metric proved it was safe?"
+            )
+        elif has_resume_memory and len(transcript.split()) < 35:
+            response = (
+                f"I want this grounded in your resume. Pick one concrete decision from "
+                f"{primary_project} and explain the tradeoff, not just the outcome."
             )
         elif "api" in lower_transcript or "fastapi" in lower_transcript:
             response = (

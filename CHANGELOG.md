@@ -49,6 +49,8 @@ The format follows Keep a Changelog principles, and this project aims to use sem
 - Interviewer persona/accent/candidate metadata fields for richer AI context.
 - WebSocket `transcript_delta`, `transcript_final`, and `interviewer_interrupt` events for a more realtime interview loop.
 - Live transcript buffering and lightweight answer-drift detection during candidate speech.
+- Light/dark theme toggle and responsive mobile layout improvements for the candidate frontend.
+- Premium roadmap marker for subscription-only interview capabilities.
 
 ### Changed
 
@@ -67,6 +69,8 @@ The format follows Keep a Changelog principles, and this project aims to use sem
 - Candidate-facing flow now prioritizes realistic interview room interaction over dashboard-style layout.
 - Browser speech recognition now streams interim transcript updates and finalizes the answer when recording stops.
 - README now uses a recruiter-friendly project structure with problem statement, features, architecture, setup, APIs, challenges, and future improvements.
+- Interview setup now uses a single resume upload input instead of manual skills, project highlights, and resume summary fields.
+- Interview planner now derives skill/project memory from resume context when explicit profile fields are absent.
 
 ### Fixed
 

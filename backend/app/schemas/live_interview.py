@@ -56,7 +56,7 @@ class StartLiveInterviewRequest(BaseModel):
     resume_id: UUID | None = None
     candidate_skills: list[str] = Field(default_factory=list, max_length=12)
     project_highlights: list[str] = Field(default_factory=list, max_length=8)
-    resume_summary: str | None = Field(default=None, max_length=1500)
+    resume_summary: str | None = Field(default=None, max_length=12000)
     question_count: int = Field(default=5, ge=1, le=12)
 
 

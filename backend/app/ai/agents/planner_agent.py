@@ -50,6 +50,9 @@ Rules:
 - Return only valid JSON.
 - Generate one opening question and a hidden roadmap of follow-up topics.
 - Questions must be specific to the candidate role, skills, projects, and company style.
+- If resume_summary is present, treat it as the primary memory source and ask from it.
+- Prefer project names, technologies, responsibilities, metrics, and tradeoffs
+  found in resume_summary.
 - Avoid generic questions like "tell me about yourself".
 - Each question should test a different interviewer intent.
 - The live interviewer will adapt later, so do not over-script.

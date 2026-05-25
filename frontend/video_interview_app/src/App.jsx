@@ -14,11 +14,12 @@ import {
   LayoutTemplate,
   Mic,
   Mic2,
-  PenLine,
+  Moon,
   Play,
   Send,
   Share2,
   Sparkles,
+  Sun,
   Video,
   Volume2,
 } from "lucide-react";
@@ -85,6 +86,9 @@ function App() {
   const [streamedAiText, setStreamedAiText] = useState("");
   const [status, setStatus] = useState("Ready");
   const [error, setError] = useState("");
+  const [theme, setTheme] = useState(
+    () => localStorage.getItem("viewbuddy-theme") || "dark",
+  );
   const [setup, setSetup] = useState({
     role: "AI Engineer",
     experience: "Entry Level",
@@ -96,9 +100,7 @@ function App() {
     candidateName: "Harsh Raj",
     language: "Python",
     resumeName: "",
-    skillsText: "FastAPI, PostgreSQL, LLM apps, RAG, React",
-    projectsText: "AI Interview Copilot, resume-aware mock interview platform",
-    resumeSummary: "",
+    resumeContext: "",
   });
 
   useEffect(() => {
@@ -132,6 +134,11 @@ function App() {
   }, [answerText]);
 
   useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem("viewbuddy-theme", theme);
+  }, [theme]);
+
+  useEffect(() => {
     return () => {
       window.speechSynthesis?.cancel();
       recognitionRef.current?.stop();
@@ -151,6 +158,24 @@ function App() {
 
   function updateSetup(field, value) {
     setSetup((current) => ({ ...current, [field]: value }));
+  }
+
+  async function updateResumeFile(file) {
+    if (!file) {
+      setSetup((current) => ({ ...current, resumeName: "", resumeContext: "" }));
+      return;
+    }
+
+    let resumeContext = `Resume file uploaded: ${file.name}.`;
+    if (file.type.startsWith("text/") || /\.(txt|md)$/i.test(file.name)) {
+      resumeContext = (await file.text()).slice(0, 10000);
+    }
+
+    setSetup((current) => ({
+      ...current,
+      resumeName: file.name,
+      resumeContext,
+    }));
   }
 
   function updateAnswerText(value) {
@@ -228,9 +253,9 @@ function App() {
           interviewer_persona: `${setup.interviewer} - ${setup.personality}`,
           interviewer_accent: setup.accent,
           interview_duration_minutes: setup.interviewType.includes("45") ? 45 : 30,
-          candidate_skills: parseProfileList(setup.skillsText),
-          project_highlights: parseProfileList(setup.projectsText),
-          resume_summary: setup.resumeSummary || setup.resumeName || null,
+          candidate_skills: [],
+          project_highlights: [],
+          resume_summary: buildResumeContext(setup),
           question_count: 5,
         }),
       });
@@ -602,11 +627,21 @@ function App() {
   return (
     <main className="app-shell">
       {screen !== "landing" ? (
-        <ProgressHeader screen={screen} stepIndex={stepIndex} status={status} />
+        <ProgressHeader
+          screen={screen}
+          stepIndex={stepIndex}
+          status={status}
+          theme={theme}
+          onToggleTheme={() => setTheme((current) => (current === "dark" ? "light" : "dark"))}
+        />
       ) : null}
 
       {screen === "landing" ? (
-        <LandingScreen onStart={() => setScreen("setup")} />
+        <LandingScreen
+          onStart={() => setScreen("setup")}
+          theme={theme}
+          onToggleTheme={() => setTheme((current) => (current === "dark" ? "light" : "dark"))}
+        />
       ) : null}
 
       {screen === "setup" ? (
@@ -614,6 +649,7 @@ function App() {
           setup={setup}
           interviewerTone={interviewerTone}
           onChange={updateSetup}
+          onResumeFile={updateResumeFile}
           onNext={() => setScreen("waiting")}
         />
       ) : null}
@@ -692,15 +728,24 @@ function selectedInterviewerName(setup) {
   return "Sarah";
 }
 
-function parseProfileList(value) {
-  return value
-    .split(/[,;\n]/)
-    .map((item) => item.trim())
-    .filter(Boolean)
-    .slice(0, 8);
+function buildResumeContext(setup) {
+  if (!setup.resumeName && !setup.resumeContext) return null;
+  return [
+    setup.resumeContext || `Resume file uploaded: ${setup.resumeName}.`,
+    `Interview target: ${setup.role}, ${setup.companyStyle}, ${setup.experience}.`,
+    "Use this resume context as the primary memory source for resume-based questions.",
+  ].join("\n");
 }
 
-function ProgressHeader({ screen, stepIndex, status }) {
+function ThemeToggle({ theme, onToggleTheme }) {
+  return (
+    <button className="theme-toggle" onClick={onToggleTheme} aria-label="Toggle theme">
+      {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+    </button>
+  );
+}
+
+function ProgressHeader({ screen, stepIndex, status, theme, onToggleTheme }) {
   return (
     <header className="progress-header">
       <div>
@@ -708,6 +753,7 @@ function ProgressHeader({ screen, stepIndex, status }) {
         <h1>{screenLabels[screen]}</h1>
       </div>
       <div className="progress-meta">
+        <ThemeToggle theme={theme} onToggleTheme={onToggleTheme} />
         <span>{status}</span>
         <span>
           Step {stepIndex + 1} of {screenOrder.length}
@@ -726,12 +772,15 @@ const screenLabels = {
   report: "Feedback report",
 };
 
-function LandingScreen({ onStart }) {
+function LandingScreen({ onStart, theme, onToggleTheme }) {
   return (
     <section className="landing">
       <nav className="nav">
         <strong>viewBuddy.ai</strong>
-        <button className="ghost compact" onClick={onStart}>Start interview</button>
+        <div className="nav-actions">
+          <ThemeToggle theme={theme} onToggleTheme={onToggleTheme} />
+          <button className="ghost compact" onClick={onStart}>Start interview</button>
+        </div>
       </nav>
 
       <section className="hero">
@@ -787,7 +836,7 @@ function LandingScreen({ onStart }) {
   );
 }
 
-function SetupScreen({ setup, interviewerTone, onChange, onNext }) {
+function SetupScreen({ setup, interviewerTone, onChange, onResumeFile, onNext }) {
   return (
     <section className="customize-shell">
       <div className="customize-card">
@@ -803,40 +852,25 @@ function SetupScreen({ setup, interviewerTone, onChange, onNext }) {
         <SelectGroup label="Role" value={setup.role} options={roles} onChange={(value) => onChange("role", value)} />
         <SelectGroup label="Company style" value={setup.companyStyle} options={companyStyles} onChange={(value) => onChange("companyStyle", value)} />
         <TextInputGroup label="Candidate name" value={setup.candidateName} onChange={(value) => onChange("candidateName", value)} />
-        <TextAreaGroup
-          label="Skills"
-          value={setup.skillsText}
-          onChange={(value) => onChange("skillsText", value)}
-          placeholder="FastAPI, PostgreSQL, Redis, LLM apps"
-        />
-        <TextAreaGroup
-          label="Project highlights"
-          value={setup.projectsText}
-          onChange={(value) => onChange("projectsText", value)}
-          placeholder="AI Interview Copilot, resume parser, analytics dashboard"
-        />
-        <TextAreaGroup
-          label="Resume summary"
-          value={setup.resumeSummary}
-          onChange={(value) => onChange("resumeSummary", value)}
-          placeholder="Paste 2-3 lines from your resume for more personalized questions."
-          compact
-        />
-        <label className="upload-box">
+        <label className={setup.resumeName ? "upload-box has-file" : "upload-box"}>
           <FileText size={18} />
-          <span>{setup.resumeName || "Upload resume PDF or DOCX"}</span>
+          <span>{setup.resumeName || "Upload resume"}</span>
           <input
             type="file"
-            accept=".pdf,.docx"
-            onChange={(event) => onChange("resumeName", event.target.files?.[0]?.name ?? "")}
+            accept=".pdf,.docx,.txt,.md"
+            onChange={(event) => onResumeFile(event.target.files?.[0])}
           />
         </label>
+        <div className="premium-note">
+          <Sparkles size={17} />
+          <span>Premium roadmap: deeper resume memory, longer interviews, coding observation, and company-specific rounds.</span>
+        </div>
         <div className="setup-footer-note">
           <Headphones size={18} />
           <span>This interview will take 45 minutes. Put on headphones for better sound quality.</span>
         </div>
         <div className="setup-actions">
-          <button className="ghost" onClick={() => onChange("resumeSummary", "")}>Cancel</button>
+          <button className="ghost" onClick={() => onResumeFile(null)}>Clear resume</button>
           <button className="primary" onClick={onNext}>
             Start Interview
             <Headphones size={17} />
@@ -1188,20 +1222,6 @@ function TextInputGroup({ label, value, onChange, readonly = false }) {
         readOnly={readonly}
         value={value}
         onChange={(event) => onChange(event.target.value)}
-      />
-    </label>
-  );
-}
-
-function TextAreaGroup({ label, value, placeholder, compact = false, onChange }) {
-  return (
-    <label className="field">
-      <span>{label}</span>
-      <textarea
-        className={compact ? "compact-textarea" : "setup-textarea"}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder={placeholder}
       />
     </label>
   );
