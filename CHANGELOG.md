@@ -74,6 +74,7 @@ The format follows Keep a Changelog principles, and this project aims to use sem
 
 ### Fixed
 
+- Improved light/dark theme contrast for native selects, dropdown options, form controls, captions, and interview panels.
 - Prevented duplicate transcript WebSocket events from generating duplicate follow-up questions.
 - Prevented overlapping browser speech synthesis and microphone recognition during live interviews.
 - Fixed early interview leave flow so sessions can transition to feedback generation cleanly.
