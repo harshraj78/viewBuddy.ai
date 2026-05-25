@@ -112,14 +112,12 @@ Key design decision: the live interview screen stays minimal. Analytics, scores,
 
 ## Screenshots
 
-Add screenshots here after the next UI pass:
-
-- Landing page
-- Customize mock interview screen
-- Waiting room
-- Live interview room
-- Coding round
-- Feedback report
+- <img width="874" height="505" alt="image" src="https://github.com/user-attachments/assets/1537ad4f-3300-42a2-aba1-5cfe7851d38b" />
+- <img width="416" height="701" alt="image" src="https://github.com/user-attachments/assets/9ee737cd-a5c6-402f-aa49-d64a9864a632" />
+- <img width="886" height="544" alt="image" src="https://github.com/user-attachments/assets/2b6b8623-3b67-4488-9cdb-000368617c00" />
+- <img width="888" height="708" alt="image" src="https://github.com/user-attachments/assets/7238c46a-f2a5-4bee-9261-c4b371ddd7c7" />
+- <img width="882" height="616" alt="image" src="https://github.com/user-attachments/assets/161264fe-fb26-45c4-b0c1-b1195d20b950" />
+- <img width="877" height="422" alt="image" src="https://github.com/user-attachments/assets/2779a910-5a8b-4acd-a8eb-29cee4aa608a" />
 
 Recommended filenames:
 
