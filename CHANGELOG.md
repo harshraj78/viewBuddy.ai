@@ -8,6 +8,7 @@ The format follows Keep a Changelog principles, and this project aims to use sem
 
 ### Added
 
+- Interview generation lock and turn-state tracking to prevent overlapping AI responses.
 - Initial product architecture and roadmap.
 - Production-oriented README.
 - Engineering progress log in `AGENTS.md`.
@@ -54,6 +55,9 @@ The format follows Keep a Changelog principles, and this project aims to use sem
 
 ### Changed
 
+- Partial transcript deltas now update live memory only; AI responses are generated only from finalized answers.
+- Frontend mic controls now block recording while the interviewer is speaking or preparing a response.
+- Follow-up streaming now reuses one message id so the final question can replace the progressive buffer.
 - Realtime session startup now avoids racing REST question loading against WebSocket introduction state.
 - Follow-up generation now includes acknowledgement pacing and more natural interviewer transitions.
 - Live interview UI now uses stable active session/question refs to reduce stale state during follow-ups.

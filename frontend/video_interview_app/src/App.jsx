@@ -67,6 +67,7 @@ function App() {
   const isRecordingRef = useRef(false);
   const isSpeakingRef = useRef(false);
   const isSubmittingTranscriptRef = useRef(false);
+  const isAwaitingAiResponseRef = useRef(false);
   const transcriptStartedAtRef = useRef(null);
   const lastTranscriptDeltaAtRef = useRef(0);
   const processedSocketMessagesRef = useRef(new Set());
@@ -81,6 +82,7 @@ function App() {
   const [isRecording, setIsRecording] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isAwaitingAiResponse, setIsAwaitingAiResponse] = useState(false);
   const [transcriptOpen, setTranscriptOpen] = useState(false);
   const [voiceMessage, setVoiceMessage] = useState("");
   const [streamedAiText, setStreamedAiText] = useState("");
@@ -128,6 +130,10 @@ function App() {
   useEffect(() => {
     isSpeakingRef.current = isSpeaking;
   }, [isSpeaking]);
+
+  useEffect(() => {
+    isAwaitingAiResponseRef.current = isAwaitingAiResponse;
+  }, [isAwaitingAiResponse]);
 
   useEffect(() => {
     answerTextRef.current = answerText;
@@ -218,6 +224,28 @@ function App() {
         item.id === messageId
           ? { ...item, text: `${item.text} ${chunk}`.trim(), isStreaming: true }
           : item,
+      );
+    });
+  }
+
+  function finalizeStreamingMessage(messageId, speaker, text) {
+    if (!messageId || !text) return;
+    setConversationMessages((current) => {
+      const existing = current.find((item) => item.id === messageId);
+      if (!existing) {
+        return [
+          ...current,
+          {
+            id: messageId,
+            speaker,
+            text,
+            isStreaming: false,
+          },
+        ];
+      }
+
+      return current.map((item) =>
+        item.id === messageId ? { ...item, text, isStreaming: false } : item,
       );
     });
   }
@@ -321,9 +349,13 @@ function App() {
     }
 
     if (isSpeakingRef.current) {
-      window.speechSynthesis?.cancel();
-      isSpeakingRef.current = false;
-      setIsSpeaking(false);
+      setVoiceMessage("Wait for the interviewer to finish, or use Interrupt.");
+      return;
+    }
+
+    if (isAwaitingAiResponseRef.current) {
+      setVoiceMessage("Interviewer is preparing the next response.");
+      return;
     }
 
     const recorder = new MediaRecorder(stream);
@@ -334,6 +366,26 @@ function App() {
     startSpeechRecognition();
     setIsRecording(true);
     setStatus("Recording answer");
+  }
+
+  function interruptInterviewer() {
+    if (!stream) {
+      setError("Enable camera and microphone first.");
+      return;
+    }
+    window.speechSynthesis?.cancel();
+    isSpeakingRef.current = false;
+    setIsSpeaking(false);
+    if (!isRecordingRef.current && !isAwaitingAiResponseRef.current) {
+      const recorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = recorder;
+      recorder.start();
+      transcriptStartedAtRef.current = Date.now();
+      isRecordingRef.current = true;
+      startSpeechRecognition();
+      setIsRecording(true);
+      setStatus("Recording answer");
+    }
   }
 
   function startSpeechRecognition() {
@@ -356,6 +408,9 @@ function App() {
       setTranscriptOpen(true);
     };
     recognition.onresult = (event) => {
+      if (isSpeakingRef.current || isAwaitingAiResponseRef.current) {
+        return;
+      }
       let finalTranscript = "";
       let interimTranscript = "";
       for (let index = 0; index < event.results.length; index += 1) {
@@ -440,6 +495,7 @@ function App() {
   function sendLiveTranscriptDelta(transcript) {
     const activeQuestion = questionRef.current;
     if (!activeQuestion || !transcript) return;
+    if (isSpeakingRef.current || isAwaitingAiResponseRef.current) return;
 
     const now = Date.now();
     if (now - lastTranscriptDeltaAtRef.current < 700) return;
@@ -466,8 +522,10 @@ function App() {
         ? transcriptOverride.trim()
         : answerTextRef.current.trim();
     if (!activeSession || !activeQuestion || !transcript) return;
-    if (isSubmittingTranscriptRef.current) return;
+    if (isSubmittingTranscriptRef.current || isAwaitingAiResponseRef.current) return;
     isSubmittingTranscriptRef.current = true;
+    isAwaitingAiResponseRef.current = true;
+    setIsAwaitingAiResponse(true);
     setError("");
     setStatus("Submitting answer");
     const clientEventId = createClientId("transcript");
@@ -509,6 +567,8 @@ function App() {
       setStatus("Answer queued for evaluation");
       await loadReport();
     } catch (caughtError) {
+      isAwaitingAiResponseRef.current = false;
+      setIsAwaitingAiResponse(false);
       setError(caughtError.message);
       setStatus("Answering");
     } finally {
@@ -535,6 +595,10 @@ function App() {
 
       if (event.type === "ai_response_chunk") {
         const text = event.payload.text ?? "";
+        if (event.payload.message_role === "generation_locked") {
+          setVoiceMessage("Interviewer is still responding. I ignored a duplicate answer event.");
+          return;
+        }
         if (!text) return;
         setStreamedAiText((current) => `${current} ${text}`.trim());
         if (event.payload.message_id) {
@@ -547,6 +611,11 @@ function App() {
       }
       if (event.type === "followup_question") {
         const followup = event.payload.question;
+        finalizeStreamingMessage(
+          event.payload.message_id,
+          "interviewer",
+          followup,
+        );
         setQuestion({
           id: event.payload.question_id,
           order_index: questionRef.current?.order_index ?? 0,
@@ -557,6 +626,8 @@ function App() {
         });
         updateAnswerText("");
         setStreamedAiText("");
+        isAwaitingAiResponseRef.current = false;
+        setIsAwaitingAiResponse(false);
         speakQuestion(followup);
       }
       if (event.type === "interviewer_interrupt") {
@@ -617,9 +688,11 @@ function App() {
     window.speechSynthesis?.cancel();
     isRecordingRef.current = false;
     isSpeakingRef.current = false;
+    isAwaitingAiResponseRef.current = false;
     setIsRecording(false);
     setIsListening(false);
     setIsSpeaking(false);
+    setIsAwaitingAiResponse(false);
     await loadReport();
     setScreen("report");
   }
@@ -689,10 +762,7 @@ function App() {
           onCodingRound={() => setScreen("coding")}
           onSystemRound={() => setScreen("system")}
           onLeave={enterReport}
-          onInterrupt={() => {
-            window.speechSynthesis?.cancel();
-            if (!isRecordingRef.current) toggleRecording();
-          }}
+          onInterrupt={interruptInterviewer}
         />
       ) : null}
 

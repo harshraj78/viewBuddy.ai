@@ -35,6 +35,7 @@ This file tracks project progress, architecture decisions, learning notes, bugs,
 - Interview setup simplified to a single resume upload profile input, with visible manual skills/project/resume-summary fields removed.
 - Frontend theme system added for light and dark mode, plus responsive mobile improvements.
 - Resume memory strengthened so the backend planner derives skills and project hints from resume context.
+- Realtime interviewer orchestration hardened with a backend generation lock, explicit turn-state tracking, and final-transcript-only AI generation.
 - Product vision defined.
 - High-level architecture documented.
 - Database and API design drafted.
@@ -124,6 +125,9 @@ MVP must be video-based. Streamlit can remain useful for quick internal dashboar
 - Added frontend light/dark theme toggle and improved mobile responsiveness for setup, waiting room, live interview, and report surfaces.
 - Removed visible setup fields for skills, project highlights, and resume summary in favor of one resume upload control.
 - Added backend resume-context skill/project derivation for stronger resume-based interview memory.
+- Added per-session generation locking so duplicate transcript events cannot create simultaneous AI responses.
+- Changed partial transcript deltas to update live memory only; interviewer speech now waits for finalized answers.
+- Added frontend guards to prevent mic capture while the interviewer is speaking or preparing a response.
 - Created live interview API endpoints:
   - `POST /api/v1/live-interviews/sessions`
   - `GET /api/v1/live-interviews/sessions/{session_id}`

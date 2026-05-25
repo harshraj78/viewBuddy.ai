@@ -102,3 +102,21 @@ def test_live_interrupt_detects_vague_unstructured_answer(monkeypatch) -> None:
     assert interrupt is not None
     assert interrupt["reason"] == "vague_answer"
     assert duplicate is None
+
+
+def test_generation_lock_allows_only_one_active_response(monkeypatch) -> None:
+    monkeypatch.setattr(settings, "interview_llm_provider", "fallback")
+    service = LiveInterviewService()
+    created = asyncio.run(
+        service.start_session(StartLiveInterviewRequest(target_role="AI Engineer"))
+    )
+
+    first = asyncio.run(service.begin_generation(created.session_id, "generation-1"))
+    second = asyncio.run(service.begin_generation(created.session_id, "generation-2"))
+    service.finish_generation(created.session_id, "generation-1")
+    third = asyncio.run(service.begin_generation(created.session_id, "generation-3"))
+    service.finish_generation(created.session_id, "generation-3")
+
+    assert first is True
+    assert second is False
+    assert third is True

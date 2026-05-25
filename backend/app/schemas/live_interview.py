@@ -36,6 +36,17 @@ class InterviewRuntimeState(StrEnum):
     completed = "COMPLETED"
 
 
+class InterviewTurnState(StrEnum):
+    idle = "IDLE"
+    introducing = "INTRODUCING"
+    asking_question = "ASKING_QUESTION"
+    listening = "LISTENING"
+    processing = "PROCESSING"
+    responding = "RESPONDING"
+    followup = "FOLLOWUP"
+    ending = "ENDING"
+
+
 class MediaRequirement(BaseModel):
     camera_required: bool = True
     microphone_required: bool = True

@@ -1,3 +1,4 @@
+import asyncio
 from dataclasses import dataclass, field
 from uuid import UUID, uuid4
 
@@ -22,6 +23,7 @@ from app.schemas.live_interview import (
     AnswerTranscriptResponse,
     FeedbackReportResponse,
     InterviewRuntimeState,
+    InterviewTurnState,
     LiveInterviewQuestion,
     LiveInterviewSessionResponse,
     LiveInterviewStatus,
@@ -52,6 +54,9 @@ class LiveInterviewSession:
     live_transcript_buffer: str = ""
     last_interim_transcript: str = ""
     last_interrupt_signature: str | None = None
+    generation_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+    active_generation_id: str | None = None
+    turn_state: InterviewTurnState = InterviewTurnState.idle
 
 
 class LiveInterviewService:
@@ -194,6 +199,33 @@ class LiveInterviewService:
         session.processed_event_ids.add(event_id)
         return True
 
+    async def begin_generation(self, session_id: UUID, generation_id: str) -> bool:
+        session = self._get_session(session_id)
+        if session.generation_lock.locked():
+            return False
+
+        await session.generation_lock.acquire()
+        session.active_generation_id = generation_id
+        session.turn_state = InterviewTurnState.processing
+        return True
+
+    def finish_generation(self, session_id: UUID, generation_id: str) -> None:
+        session = self._get_session(session_id)
+        if session.active_generation_id == generation_id:
+            session.active_generation_id = None
+            session.turn_state = InterviewTurnState.listening
+        if session.generation_lock.locked():
+            session.generation_lock.release()
+
+    def set_turn_state(
+        self,
+        session_id: UUID,
+        turn_state: InterviewTurnState,
+    ) -> InterviewTurnState:
+        session = self._get_session(session_id)
+        session.turn_state = turn_state
+        return session.turn_state
+
     def update_live_transcript(
         self,
         session_id: UUID,
@@ -319,6 +351,7 @@ class LiveInterviewService:
         question = session.questions[session.current_index]
         session.memory.append({"speaker": "interviewer", "message": question.question_text})
         session.current_index += 1
+        session.turn_state = InterviewTurnState.listening
         return NextQuestionResponse(
             session_id=session.session_id,
             status=session.status,
