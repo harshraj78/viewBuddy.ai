@@ -167,6 +167,32 @@ class InterviewPlanner:
                 ),
             ]
 
+        if mode == "dsa":
+            return [
+                (
+                    "dsa_approach",
+                    (
+                        "We will solve a Two Sum style problem. Before coding, explain "
+                        "the brute force approach, the optimized hash-map approach, and "
+                        "the edge cases you would test."
+                    ),
+                ),
+                (
+                    "dsa_complexity",
+                    (
+                        "After your implementation, walk me through the time and space "
+                        "complexity and why the hash map gives a single-pass solution."
+                    ),
+                ),
+                (
+                    "dsa_debugging",
+                    (
+                        "If one test case fails for duplicate numbers, how would you debug "
+                        "the map update order?"
+                    ),
+                ),
+            ]
+
         if mode == "system_design":
             return [
                 (

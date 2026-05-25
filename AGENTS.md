@@ -36,6 +36,7 @@ This file tracks project progress, architecture decisions, learning notes, bugs,
 - Frontend theme system added for light and dark mode, plus responsive mobile improvements.
 - Resume memory strengthened so the backend planner derives skills and project hints from resume context.
 - Realtime interviewer orchestration hardened with a backend generation lock, explicit turn-state tracking, and final-transcript-only AI generation.
+- Coding interview flow now starts from DSA-style approach explanation and includes a basic code editor plus test runner.
 - Product vision defined.
 - High-level architecture documented.
 - Database and API design drafted.
@@ -128,6 +129,10 @@ MVP must be video-based. Streamlit can remain useful for quick internal dashboar
 - Added per-session generation locking so duplicate transcript events cannot create simultaneous AI responses.
 - Changed partial transcript deltas to update live memory only; interviewer speech now waits for finalized answers.
 - Added frontend guards to prevent mic capture while the interviewer is speaking or preparing a response.
+- Removed the separate programming-language selector from the waiting room.
+- Added `Coding Interview` setup mode mapped to backend DSA mode.
+- Added browser-side MVP code execution with pass/fail/runtime-error terminal output.
+- Improved interviewer acknowledgements to avoid repeating robotic phrases and preserve conversational flow.
 - Created live interview API endpoints:
   - `POST /api/v1/live-interviews/sessions`
   - `GET /api/v1/live-interviews/sessions/{session_id}`
@@ -145,6 +150,7 @@ MVP must be video-based. Streamlit can remain useful for quick internal dashboar
 - Add production text-to-speech provider once moving beyond the zero-cost browser MVP.
 - Replace browser-only voice with OpenAI Realtime API and/or LiveKit when moving from MVP to production realtime.
 - Replace coding round placeholder with Monaco editor.
+- Move MVP browser code runner into a secure backend sandbox before supporting arbitrary user code in production.
 - Replace system design placeholder with whiteboard canvas.
 - Connect feedback report to real evaluation output.
 - Replace deterministic MVP evaluator with LLM rubric evaluation once provider keys are configured.

@@ -63,9 +63,11 @@ class AIConversationEngine:
         if planned_move.get("question"):
             response = str(planned_move["question"])
             if personality == "FAANG pressure":
-                response = f"Be precise. {response}"
+                response = f"Let us raise the bar here. {response}"
             elif personality == "Strict":
-                response = f"I want the exact reasoning. {response}"
+                response = f"Good, now give me the exact reasoning. {response}"
+            elif personality == "Friendly":
+                response = f"That is a good start. {response}"
             for chunk in self._chunk_text(response):
                 await asyncio.sleep(0.05)
                 yield chunk

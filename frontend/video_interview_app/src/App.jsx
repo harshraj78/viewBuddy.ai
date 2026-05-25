@@ -33,12 +33,17 @@ const API_BASE_URL =
 
 const roles = ["SDE", "AI Engineer", "Backend", "Frontend"];
 const experiences = ["Entry Level", "Fresher", "Mid-level"];
-const interviewTypes = ["Full Interview (45 mins)", "Technical", "HR", "System Design"];
+const interviewTypes = [
+  "Full Interview (45 mins)",
+  "Technical",
+  "Coding Interview",
+  "HR",
+  "System Design",
+];
 const companyStyles = ["FAANG", "Startup", "Indian Product"];
 const interviewers = ["Basic Interviewer", "Senior Engineer", "FAANG Bar Raiser"];
 const personalities = ["Easy Going", "Friendly", "Strict", "FAANG pressure"];
 const accents = ["US American", "Indian English", "British English"];
-const codingLanguages = ["Python", "JavaScript", "Java", "C++"];
 const liveStages = ["Intro", "Clarify", "Discuss", "Coding", "Testing", "Complexity", "Outro"];
 
 const screenOrder = [
@@ -100,7 +105,6 @@ function App() {
     personality: "Easy Going",
     accent: "US American",
     candidateName: "Harsh Raj",
-    language: "Python",
     resumeName: "",
     resumeContext: "",
   });
@@ -293,7 +297,13 @@ function App() {
       setStatus("Interview started");
       await requestNextQuestion(createdSession.session_id);
       connectInterviewSocket(createdSession.session_id);
-      setScreen(normalizeInterviewMode(setup.interviewType) === "system_design" ? "system" : "live");
+      if (normalizeInterviewMode(setup.interviewType) === "system_design") {
+        setScreen("system");
+      } else if (normalizeInterviewMode(setup.interviewType) === "dsa") {
+        setScreen("coding");
+      } else {
+        setScreen("live");
+      }
     } catch (caughtError) {
       setError(caughtError.message);
       setStatus("Ready");
@@ -766,7 +776,9 @@ function App() {
         />
       ) : null}
 
-      {screen === "coding" ? <CodingRound onBack={() => setScreen("live")} /> : null}
+      {screen === "coding" ? (
+        <CodingRound question={question} onBack={() => setScreen("live")} />
+      ) : null}
       {screen === "system" ? <SystemDesignRound onBack={() => setScreen("live")} /> : null}
       {screen === "report" ? (
         <FeedbackReport
@@ -789,6 +801,7 @@ function App() {
 
 function normalizeInterviewMode(value) {
   if (value === "Full Interview (45 mins)") return "technical";
+  if (value === "Coding Interview") return "dsa";
   return value.toLowerCase().replace(" ", "_");
 }
 
@@ -971,7 +984,6 @@ function WaitingRoom({ stream, videoRef, setup, error, onEnableMedia, onStartInt
       <div className="waiting-form">
         <h1>Welcome to the Interview</h1>
         <TextInputGroup label="Name" value={setup.candidateName} onChange={() => {}} readonly />
-        <SelectGroup label="Choose Language" value={setup.language} options={codingLanguages} onChange={() => {}} />
         <div className="media-heading">Media Settings</div>
         <button className="device-select" onClick={onEnableMedia}>
           <Mic size={18} />
@@ -1140,30 +1152,112 @@ function LiveInterview({
   );
 }
 
-function CodingRound({ onBack }) {
+const codingProblem = {
+  title: "Two Sum",
+  prompt:
+    "Given an array of integers nums and an integer target, return the indices of the two numbers such that they add up to target.",
+  starter: `function solve(nums, target) {
+  // Explain your approach first, then code.
+  const seen = new Map();
+  for (let index = 0; index < nums.length; index += 1) {
+    const need = target - nums[index];
+    if (seen.has(need)) return [seen.get(need), index];
+    seen.set(nums[index], index);
+  }
+  return [];
+}`,
+  tests: [
+    { input: [[2, 7, 11, 15], 9], expected: [0, 1] },
+    { input: [[3, 2, 4], 6], expected: [1, 2] },
+    { input: [[3, 3], 6], expected: [0, 1] },
+  ],
+};
+
+function CodingRound({ question, onBack }) {
+  const [code, setCode] = useState(codingProblem.starter);
+  const [results, setResults] = useState([]);
+  const [runtimeError, setRuntimeError] = useState("");
+  const currentPrompt = question?.question_text || codingProblem.prompt;
+
+  function runCode() {
+    setRuntimeError("");
+    setResults([]);
+    try {
+      // MVP-only browser runner. Production should move this into an isolated backend sandbox.
+      const factory = new Function(`${code}; return solve;`);
+      const solve = factory();
+      if (typeof solve !== "function") {
+        throw new Error("Define a function named solve.");
+      }
+      const nextResults = codingProblem.tests.map((test, index) => {
+        const actual = solve(...structuredClone(test.input));
+        const passed = JSON.stringify(actual) === JSON.stringify(test.expected);
+        return {
+          id: index + 1,
+          passed,
+          input: JSON.stringify(test.input),
+          expected: JSON.stringify(test.expected),
+          actual: JSON.stringify(actual),
+        };
+      });
+      setResults(nextResults);
+    } catch (caughtError) {
+      setRuntimeError(caughtError.message);
+    }
+  }
+
   return (
     <section className="coding-layout mock-coding">
       <BrandBar />
       <PhaseRail active="Coding" />
       <div className="problem-panel">
         <SectionTitle title="Problem description" />
-        <h2>Design a rate limiter</h2>
-        <p>
-          Implement a function that decides whether a user request should be allowed
-          based on a maximum number of requests per minute.
-        </p>
+        <h2>{currentPrompt.includes("two") ? codingProblem.title : "Coding problem"}</h2>
+        <p>{currentPrompt}</p>
         <ul className="tips">
-          <li>Discuss data structures first.</li>
+          <li>First explain brute force and optimized approach out loud.</li>
           <li>Explain time and space complexity.</li>
-          <li>Optimize after getting a working approach.</li>
+          <li>Then implement `solve(nums, target)` in the editor.</li>
         </ul>
       </div>
       <div className="coding-interviewer">
         <Bot size={32} />
-        <p>I will observe pauses and ask hints only when needed.</p>
+        <p>Before coding, walk me through your approach and edge cases. I will ask hints only after that.</p>
       </div>
       <div className="editor-panel">
-        <pre>{`function allowRequest(userId, timestamp) {\n  // Monaco editor will mount here.\n}`}</pre>
+        <div className="editor-toolbar">
+          <span>JavaScript runner</span>
+          <button className="primary compact" onClick={runCode}>
+            <Play size={16} />
+            Run tests
+          </button>
+        </div>
+        <textarea
+          className="code-editor"
+          spellCheck="false"
+          value={code}
+          onChange={(event) => setCode(event.target.value)}
+        />
+      </div>
+      <div className="terminal-panel">
+        <SectionTitle title="Terminal" />
+        {runtimeError ? (
+          <pre className="terminal-error">Runtime error: {runtimeError}</pre>
+        ) : null}
+        {results.length ? (
+          <div className="test-results">
+            {results.map((result) => (
+              <div className={result.passed ? "test-row passed" : "test-row failed"} key={result.id}>
+                <strong>{result.passed ? "Passed" : "Failed"} test {result.id}</strong>
+                <span>Input: {result.input}</span>
+                <span>Expected: {result.expected}</span>
+                <span>Actual: {result.actual}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="empty-terminal">Run tests to see passed cases, failed cases, and runtime errors.</p>
+        )}
       </div>
       <button className="ghost compact" onClick={onBack}>Back to interview</button>
     </section>

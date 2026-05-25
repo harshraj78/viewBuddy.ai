@@ -45,6 +45,7 @@ class InterviewBrainState:
     turn_count: int = 0
     current_strategy: str = "calibrate"
     last_interviewer_intent: str | None = None
+    last_acknowledgement: str | None = None
 
     @property
     def average_depth(self) -> int:
@@ -205,7 +206,14 @@ class InterviewBrain:
             return self._move(
                 state,
                 InterviewMoveType.clarify,
-                "I need a more concrete answer.",
+                self._ack(
+                    state,
+                    [
+                        "I follow the direction, but it is still too broad.",
+                        "Okay, let us make that more specific.",
+                        "That gives me the outline. I want the implementation detail now.",
+                    ],
+                ),
                 (
                     f"You earlier touched on {earlier_tech}. In {project}, name the exact "
                     "component you built, one design choice you made, and the production "
@@ -218,7 +226,14 @@ class InterviewBrain:
             return self._move(
                 state,
                 InterviewMoveType.challenge,
-                "That sounds a bit rehearsed.",
+                self._ack(
+                    state,
+                    [
+                        "I want to move away from the polished version.",
+                        "Let us make this more real.",
+                        "That sounds prepared; I want the actual engineering story.",
+                    ],
+                ),
                 (
                     "Drop the polished version. What actually went wrong while building it, "
                     "and what did you personally change?"
@@ -230,7 +245,14 @@ class InterviewBrain:
             return self._move(
                 state,
                 InterviewMoveType.tradeoff,
-                "Let us test the decision-making.",
+                self._ack(
+                    state,
+                    [
+                        "Interesting, let us test the decision behind that.",
+                        "Got it. Now I want to understand the tradeoff.",
+                        "That makes sense at a high level. Let us compare alternatives.",
+                    ],
+                ),
                 (
                     f"Why did you choose {skill} for this problem, and what alternative "
                     "would become better if constraints changed?"
@@ -241,7 +263,14 @@ class InterviewBrain:
             return self._move(
                 state,
                 InterviewMoveType.debugging,
-                "I want to see how you think under failure.",
+                self._ack(
+                    state,
+                    [
+                        "Good. Now let us put it under production pressure.",
+                        "That is reasonable. Let us talk about what breaks.",
+                        "Okay, now imagine this fails in front of users.",
+                    ],
+                ),
                 (
                     f"Assume this breaks during a {company} production launch. "
                     "What would fail first, what would you log, and how would you recover?"
@@ -252,7 +281,14 @@ class InterviewBrain:
             return self._move(
                 state,
                 InterviewMoveType.scaling,
-                "Let us put numbers around it.",
+                self._ack(
+                    state,
+                    [
+                        "That is a useful direction. Let us quantify it.",
+                        "Good, now let us attach a measurable signal to it.",
+                        "I understand the design. Now tell me how you would measure it.",
+                    ],
+                ),
                 (
                     f"If traffic becomes 100x, which metric tells you {skill} is the "
                     "bottleneck, and what is your first optimization?"
@@ -263,7 +299,14 @@ class InterviewBrain:
             return self._move(
                 state,
                 InterviewMoveType.behavioral,
-                "I am going to switch gears briefly.",
+                self._ack(
+                    state,
+                    [
+                        "I am going to switch gears briefly.",
+                        "Before we continue technically, one collaboration question.",
+                        "Let us briefly cover how you communicate technical decisions.",
+                    ],
+                ),
                 (
                     f"You earlier mentioned {earlier_tech}. Tell me about a moment where "
                     "you had to defend that technical decision to someone else."
@@ -274,7 +317,14 @@ class InterviewBrain:
         return self._move(
             state,
             InterviewMoveType.deepen,
-            "Good, let us go one level deeper.",
+            self._ack(
+                state,
+                [
+                    "Good, let us go one level deeper.",
+                    "That is a solid start. I want to push one layer further.",
+                    "Okay, now connect that to the earlier design choice.",
+                ],
+            ),
             (
                 f"Connect your earlier {earlier_tech} point to this answer. "
                 f"What assumption would a senior {role} interviewer challenge?"
@@ -294,6 +344,7 @@ class InterviewBrain:
     ) -> InterviewMove:
         state.move_history.append(move_type.value)
         state.last_interviewer_intent = rationale
+        state.last_acknowledgement = acknowledgement
         return InterviewMove(
             move_type=move_type,
             acknowledgement=acknowledgement,
@@ -301,6 +352,12 @@ class InterviewBrain:
             rationale=rationale,
             should_interrupt=should_interrupt,
         )
+
+    def _ack(self, state: InterviewBrainState, options: list[str]) -> str:
+        for option in options:
+            if option != state.last_acknowledgement:
+                return option
+        return options[0]
 
     def _extract_topics(self, current_question: str, transcript: str) -> list[str]:
         text = f"{current_question} {transcript}".lower()

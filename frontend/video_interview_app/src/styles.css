@@ -680,12 +680,13 @@ video {
 .coding-layout {
   display: grid;
   gap: 16px;
-  grid-template-columns: minmax(280px, 0.8fr) minmax(260px, 0.5fr);
+  grid-template-columns: minmax(280px, 0.85fr) minmax(260px, 0.55fr);
 }
 
 .problem-panel,
 .coding-interviewer,
 .editor-panel,
+.terminal-panel,
 .whiteboard {
   background: var(--panel);
   border: 1px solid var(--border);
@@ -694,8 +695,60 @@ video {
 }
 
 .editor-panel {
-  grid-column: 1 / -1;
+  display: grid;
+  gap: 12px;
   min-height: 360px;
+}
+
+.terminal-panel {
+  align-content: start;
+  display: grid;
+  gap: 12px;
+}
+
+.editor-toolbar {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.code-editor {
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  min-height: 320px;
+  resize: vertical;
+}
+
+.terminal-error {
+  background: rgba(185, 28, 28, 0.14);
+  border: 1px solid rgba(185, 28, 28, 0.32);
+  border-radius: 8px;
+  color: #fecaca;
+  padding: 12px;
+}
+
+.test-results {
+  display: grid;
+  gap: 10px;
+}
+
+.test-row {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+}
+
+.test-row.passed {
+  background: rgba(24, 201, 173, 0.1);
+}
+
+.test-row.failed {
+  background: rgba(185, 28, 28, 0.12);
+}
+
+.empty-terminal {
+  color: var(--muted);
 }
 
 pre {

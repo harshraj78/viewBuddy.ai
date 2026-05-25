@@ -49,3 +49,23 @@ def test_interview_planner_derives_memory_from_resume_context() -> None:
     assert profile.projects
     assert "resume context" in questions[0].question_text.lower()
     assert "FastAPI" in question_text
+
+
+def test_interview_planner_generates_dsa_approach_first_questions() -> None:
+    request = StartLiveInterviewRequest(
+        target_role="SDE",
+        mode=InterviewMode.dsa,
+        difficulty=InterviewDifficulty.intermediate,
+        target_company="FAANG",
+        question_count=3,
+    )
+
+    questions = interview_planner.generate_seed_questions(
+        request=request,
+        session_seed="dsa-session",
+    )
+    question_text = " ".join(question.question_text.lower() for question in questions)
+
+    assert "brute force" in question_text
+    assert "optimized" in question_text
+    assert "edge cases" in question_text
