@@ -119,16 +119,6 @@ Key design decision: the live interview screen stays minimal. Analytics, scores,
 - <img width="882" height="616" alt="image" src="https://github.com/user-attachments/assets/161264fe-fb26-45c4-b0c1-b1195d20b950" />
 - <img width="877" height="422" alt="image" src="https://github.com/user-attachments/assets/2779a910-5a8b-4acd-a8eb-29cee4aa608a" />
 
-Recommended filenames:
-
-```text
-docs/screenshots/landing.png
-docs/screenshots/setup.png
-docs/screenshots/waiting-room.png
-docs/screenshots/live-interview.png
-docs/screenshots/report.png
-```
-
 ## Setup Instructions
 
 ### 1. Clone the repository
