@@ -45,8 +45,13 @@ async def live_interview_websocket(websocket: WebSocket, session_id: UUID) -> No
         while True:
             raw_event = await websocket.receive_json()
             event = WebSocketEvent.model_validate(raw_event)
-            if event.type == WebSocketEventType.transcript_chunk:
-                await _handle_transcript_chunk(websocket, session_id, event)
+            if event.type == WebSocketEventType.transcript_delta:
+                await _handle_transcript_delta(websocket, session_id, event)
+            elif event.type in {
+                WebSocketEventType.transcript_chunk,
+                WebSocketEventType.transcript_final,
+            }:
+                await _handle_transcript_final(websocket, session_id, event)
             elif event.type == WebSocketEventType.interview_complete:
                 await _complete_interview(websocket, session_id)
                 await _send_event(
@@ -65,7 +70,36 @@ async def live_interview_websocket(websocket: WebSocket, session_id: UUID) -> No
         )
 
 
-async def _handle_transcript_chunk(
+async def _handle_transcript_delta(
+    websocket: WebSocket,
+    session_id: UUID,
+    event: WebSocketEvent,
+) -> None:
+    transcript = str(event.payload.get("transcript", "")).strip()
+    if not transcript:
+        return
+
+    live_buffer = live_interview_service.update_live_transcript(
+        session_id,
+        transcript=transcript,
+    )
+    interrupt = live_interview_service.plan_live_interrupt(session_id, live_buffer)
+    if not interrupt:
+        return
+
+    await _send_event(
+        websocket,
+        WebSocketEventType.interviewer_interrupt,
+        {
+            "message_id": str(uuid4()),
+            "speaker": "interviewer",
+            "text": interrupt["message"],
+            "reason": interrupt["reason"],
+        },
+    )
+
+
+async def _handle_transcript_final(
     websocket: WebSocket,
     session_id: UUID,
     event: WebSocketEvent,
@@ -87,6 +121,11 @@ async def _handle_transcript_chunk(
     personality = str(event.payload.get("personality", "Friendly"))
     if not transcript:
         return
+    transcript = live_interview_service.update_live_transcript(
+        session_id,
+        transcript=transcript,
+        is_final=True,
+    )
 
     session = live_interview_service.get_runtime_session(session_id)
     live_interview_service.append_memory(
@@ -145,6 +184,7 @@ async def _handle_transcript_chunk(
         followup,
         question_type=next_move.move_type.value,
     )
+    live_interview_service.clear_live_transcript(session_id)
     await _send_event(
         websocket,
         WebSocketEventType.followup_question,

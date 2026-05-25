@@ -1,7 +1,11 @@
+import asyncio
+
 from fastapi.testclient import TestClient
 
 from app.core.config import settings
 from app.main import app
+from app.schemas.live_interview import StartLiveInterviewRequest
+from app.services.live_interview_service import LiveInterviewService
 
 
 def test_live_interview_session_flow_accepts_transcript(monkeypatch) -> None:
@@ -58,3 +62,43 @@ def test_live_interview_session_flow_accepts_transcript(monkeypatch) -> None:
     assert report["communication"]["score"] > 0
     assert report["technical"]["score"] > 0
     assert report["replay"][0]["question_id"] == question["id"]
+
+
+def test_live_transcript_buffer_prefers_longer_interim(monkeypatch) -> None:
+    monkeypatch.setattr(settings, "interview_llm_provider", "fallback")
+    service = LiveInterviewService()
+    request = StartLiveInterviewRequest(target_role="Backend", question_count=1)
+
+    created = asyncio.run(service.start_session(request))
+    first = service.update_live_transcript(
+        created.session_id,
+        transcript="I used FastAPI",
+    )
+    second = service.update_live_transcript(
+        created.session_id,
+        transcript="I used FastAPI with async endpoints and PostgreSQL",
+    )
+
+    assert first == "I used FastAPI"
+    assert second.endswith("PostgreSQL")
+
+
+def test_live_interrupt_detects_vague_unstructured_answer(monkeypatch) -> None:
+    monkeypatch.setattr(settings, "interview_llm_provider", "fallback")
+    service = LiveInterviewService()
+
+    created = asyncio.run(
+        service.start_session(StartLiveInterviewRequest(target_role="AI Engineer"))
+    )
+    vague_answer = (
+        "I think basically we used some things and kind of made the system work "
+        "with the backend and the AI part and then maybe it handled requests "
+        "properly for users in the project."
+    )
+
+    interrupt = service.plan_live_interrupt(created.session_id, vague_answer)
+    duplicate = service.plan_live_interrupt(created.session_id, vague_answer)
+
+    assert interrupt is not None
+    assert interrupt["reason"] == "vague_answer"
+    assert duplicate is None

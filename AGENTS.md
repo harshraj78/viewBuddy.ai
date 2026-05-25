@@ -30,6 +30,8 @@ This file tracks project progress, architecture decisions, learning notes, bugs,
 - MVP deployment foundation added for Vercel frontend and Railway/Render backend.
 - Render/Vercel CORS deployment issue fixed by switching CORS origins to comma-separated string parsing and allowing Vercel domains by regex.
 - Candidate-facing UX shifted toward a MockAI-style flow with interview customization, audio-first waiting room, staged live interview room, and interrupt control.
+- Realtime interview loop v2 started with WebSocket transcript deltas, final transcript events, live answer buffering, and lightweight interviewer interruption signals.
+- README reshaped into a recruiter-friendly structure covering problem statement, features, stack, architecture, screenshots, setup, APIs, challenges, and future improvements.
 - Product vision defined.
 - High-level architecture documented.
 - Database and API design drafted.
@@ -112,6 +114,10 @@ MVP must be video-based. Streamlit can remain useful for quick internal dashboar
 - Reworked setup screen into a focused "Customize Your Mock Interview" experience.
 - Reworked waiting room into a large candidate preview plus audio/screen-share setup panel.
 - Reworked live interview UI into two participant panels, phase rail, timer, compact transcript, and interviewer interrupt control.
+- Added WebSocket events for `transcript_delta`, `transcript_final`, and `interviewer_interrupt`.
+- Added live transcript buffer handling and deterministic interruption rules for vague or unstructured answers.
+- Updated frontend speech recognition to stream interim transcript deltas and finalize answers when recording stops.
+- Rewrote `README.md` into the requested recruiter-facing project format.
 - Created live interview API endpoints:
   - `POST /api/v1/live-interviews/sessions`
   - `GET /api/v1/live-interviews/sessions/{session_id}`

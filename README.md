@@ -1,542 +1,178 @@
-# AI Interview Copilot
+# ViewBuddy.ai - AI Interview Copilot
 
-AI Interview Copilot is a production-oriented interview preparation platform for candidates targeting AI Engineer, backend, and software roles. It accepts resumes, extracts skills and projects, generates personalized technical and behavioral interviews, evaluates answers with LLMs, scores performance, and tracks long-term improvement.
+ViewBuddy.ai is a realtime AI mock interview platform for candidates preparing for SDE, AI Engineer, backend, frontend, and system design interviews. The product is built to feel like a live interview room, not a chatbot or static questionnaire.
 
-This repository is intentionally designed like a real SaaS AI product, not a toy tutorial. The goal is to make it deployable, extensible, recruiter-impressive, and strong enough to discuss deeply in interviews.
+## Problem Statement
 
-## 1. Project Overview
+Most interview preparation tools give generic question banks or text-based chat. Real interviews are different: candidates must speak clearly, handle follow-ups, explain tradeoffs, recover from weak answers, and stay calm under pressure.
 
-The platform helps candidates practice realistic interview rounds using AI:
+ViewBuddy.ai solves this by simulating a live AI interviewer that:
 
-- Upload a resume in PDF or DOCX format.
-- Parse skills, experience, projects, education, and achievements.
-- Generate interview questions from resume, target role, company, and job description.
-- Support technical, HR, behavioral, DSA, and domain-specific rounds.
-- Evaluate user answers with structured scoring rubrics.
-- Generate actionable feedback and improvement roadmaps.
-- Track progress across sessions with analytics.
+- asks one question at a time through voice
+- listens to candidate answers through the browser microphone
+- adapts follow-up questions using role, skills, projects, resume context, and conversation memory
+- challenges vague answers with implementation, scaling, debugging, and tradeoff probes
+- generates a feedback report after the interview instead of distracting the candidate during the round
 
-Beginner view: the app behaves like an AI mock interviewer.
+## Features
 
-Industry view: the app is an AI workflow system with user management, document ingestion, structured LLM outputs, async processing, retrieval, observability, prompt versioning, and cost controls.
+- MockAI-style interview setup with role, difficulty, interviewer personality, accent, and company style
+- Waiting room with camera and microphone checks
+- Live video interview screen with candidate panel, AI interviewer panel, timer, phase rail, interrupt control, and compact transcript
+- Browser SpeechRecognition for zero-cost speech-to-text
+- Browser speechSynthesis for zero-cost AI interviewer voice
+- FastAPI WebSocket orchestration for live transcript deltas, final answers, AI response chunks, follow-up questions, and interview state transitions
+- Stateful interview brain that tracks strengths, weak areas, answered topics, technologies, confidence, depth, and repetition
+- Gemini/local/fallback model router for AI question planning and follow-up generation
+- Resume/skills/project-aware personalization inputs
+- Feedback report with communication, technical, behavioral, replay, and improvement suggestions
+- Separate screens for coding round, system design round, and final report
+- Deployment-ready frontend and backend configs for Vercel and Render/Railway
 
-## 2. Product Vision
+## Tech Stack
 
-The product should feel like a serious AI interview coach for India-focused 2026 hiring. A strong v1 focuses on reliability, explainability, and useful feedback rather than flashy AI demos.
+Frontend:
 
-Primary users:
+- React
+- Vite
+- Tailwind-style custom CSS
+- lucide-react icons
+- Browser Media APIs
+- Browser SpeechRecognition
+- Browser speechSynthesis
 
-- Beginner-to-intermediate developers preparing for AI Engineer roles.
-- Candidates applying to Indian startups, product companies, service companies, and global remote roles.
-- Students who need resume-based mock interviews and progress tracking.
+Backend:
 
-Recruiter value:
+- FastAPI
+- Python 3.11
+- Pydantic v2
+- SQLAlchemy
+- Alembic
+- WebSockets
 
-- Shows full-stack product thinking.
-- Demonstrates AI engineering beyond simple chatbot wrappers.
-- Covers backend design, database modeling, prompt engineering, async jobs, RAG, deployment, testing, and monitoring.
+AI:
 
-## 3. High-Level Architecture
+- Gemini 2.5 Flash API support
+- OpenAI-compatible local model support for vLLM
+- Deterministic fallback mode for zero-cost demos
+- Agent-style interviewer components: planner, analyzer, strategist, memory manager, interviewer
 
-```text
-                       +----------------------+
-                       |   React Video Room    |
-                       |  live interview MVP   |
-                       +----------+-----------+
-                                  |
-                                  | HTTPS / JSON
-                                  v
-+------------------+    +---------+----------+     +-------------------+
-|  Reverse Proxy   | -> |   FastAPI Backend  | --> |   PostgreSQL DB   |
-|  Nginx / Cloud   |    |  API + business    |     | relational state  |
-+------------------+    +---------+----------+     +-------------------+
-                                  |
-                                  +--------------+
-                                  |              |
-                                  v              v
-                         +--------+-----+   +----+----------------+
-                         | LLM Provider |   | Vector DB           |
-                         | OpenAI/Groq/ |   | ChromaDB/Pinecone   |
-                         | Gemini       |   | resume/job context  |
-                         +--------------+   +---------------------+
-                                  |
-                                  v
-                         +--------+---------+
-                         | Background Jobs  |
-                         | Celery + Redis   |
-                         +------------------+
-```
+Database and deployment:
 
-Core request flow:
+- PostgreSQL / Supabase-ready schema direction
+- Render or Railway backend deployment
+- Vercel frontend deployment
+- Docker and Docker Compose foundation
 
-1. User uploads a resume.
-2. Backend stores file metadata and creates a parsing job.
-3. Worker extracts text, sections, skills, projects, and embeddings.
-4. User starts an interview session.
-5. Backend retrieves resume and job context.
-6. LLM generates structured interview questions.
-7. User submits answers.
-8. LLM evaluates answers using a scoring rubric.
-9. Scores, feedback, and analytics are stored.
-
-Scaling principle: keep API requests fast, move heavy document parsing and AI evaluation into background jobs, and store structured AI outputs so the product can be audited and improved over time.
-
-## 4. Backend Design
-
-Backend stack:
-
-- FastAPI for HTTP APIs, validation, OpenAPI docs, and dependency injection.
-- SQLAlchemy 2.x ORM for PostgreSQL persistence.
-- Alembic for database migrations.
-- Pydantic v2 for request/response schemas and LLM structured output models.
-- Celery + Redis for async parsing, embeddings, and long-running evaluations.
-- Provider abstraction for OpenAI, Groq, or Gemini.
-- ChromaDB for local MVP vector search; Pinecone for managed production vector search.
-
-Recommended service layers:
-
-- API routers: HTTP boundary only.
-- Schemas: request/response validation.
-- Services: business use cases such as create interview session or evaluate answer.
-- Repositories: database access.
-- AI services: prompts, provider clients, evaluators, parsers, embeddings.
-- Workers: background task orchestration.
-- Core: config, logging, security, errors.
-
-Beginner mistake to avoid: putting all logic inside FastAPI route functions. That becomes painful to test and impossible to scale.
-
-## 5. Frontend Design
-
-MVP frontend: React/Vite video interview room.
-
-Why React/Vite for the candidate-facing MVP:
-
-- Direct browser camera and microphone access.
-- Better control over recording and interview-room UX.
-- WebSocket-ready for live session events.
-- Easier migration path to Next.js when the SaaS UI grows.
-
-Streamlit role:
-
-- Useful for internal dashboards, demos, analytics views, and quick admin tools.
-- Not ideal as the main live video interview room.
-
-Migration path:
-
-- MVP: React/Vite video interview room.
-- Support tool: Streamlit admin/demo dashboard.
-- V2: Next.js frontend consuming the same FastAPI API.
-- Keep backend API stable so frontend migration does not rewrite core product logic.
-
-Expected screens:
-
-- Login/register.
-- Resume upload and parsed profile view.
-- Interview setup.
-- Live interview session.
-- Answer evaluation.
-- Session history.
-- Analytics dashboard.
-- Improvement roadmap.
-
-## 6. Database Schema
-
-See [docs/DATABASE_AND_API.md](docs/DATABASE_AND_API.md) for detailed schema and endpoint examples.
-
-Major entities:
-
-- `users`
-- `resumes`
-- `resume_skills`
-- `resume_projects`
-- `job_descriptions`
-- `interview_sessions`
-- `questions`
-- `answers`
-- `answer_scores`
-- `feedback_items`
-- `conversation_history`
-- `analytics_snapshots`
-- `prompt_versions`
-- `llm_calls`
-
-Design principle: store the raw AI response, structured parsed output, prompt version, provider, model, token usage, latency, and cost estimate. This makes the project interview-worthy because you can discuss auditability and AI evaluation quality.
-
-## 7. API Design
-
-API groups:
-
-- `/api/v1/auth`
-- `/api/v1/resumes`
-- `/api/v1/interviews`
-- `/api/v1/answers`
-- `/api/v1/analytics`
-- `/api/v1/reports`
-- `/api/v1/jobs`
-
-Example endpoints:
-
-- `POST /api/v1/auth/register`
-- `POST /api/v1/auth/login`
-- `POST /api/v1/resumes/upload`
-- `GET /api/v1/resumes/{resume_id}`
-- `POST /api/v1/interviews/sessions`
-- `POST /api/v1/interviews/sessions/{session_id}/questions`
-- `POST /api/v1/answers/evaluate`
-- `GET /api/v1/analytics/me`
-
-API rules:
-
-- Return typed response models.
-- Use predictable error shapes.
-- Validate file size and MIME type.
-- Protect user-owned resources.
-- Never trust client-provided user IDs; derive identity from JWT.
-
-## 8. Authentication Design
-
-MVP:
-
-- Email and password authentication.
-- Password hashing with Argon2 or bcrypt.
-- JWT access tokens.
-- Refresh token support after MVP.
-
-Production:
-
-- Short-lived access tokens.
-- Refresh token rotation.
-- Rate limiting on login.
-- Email verification.
-- Password reset.
-- Optional OAuth later.
-
-Auth flow:
+## Architecture
 
 ```text
-User -> POST /auth/login -> FastAPI verifies password -> JWT issued
-User -> Authorization: Bearer token -> Protected API route
-Route -> get_current_user dependency -> service layer receives user context
+Candidate browser
+  -> camera + microphone
+  -> SpeechRecognition transcript deltas
+  -> React live interview room
+  -> FastAPI WebSocket
+  -> Interview Session Engine
+  -> Stateful Interview Brain
+  -> Gemini / local LLM / fallback model router
+  -> AI response stream
+  -> browser speechSynthesis voice output
 ```
 
-Beginner mistake to avoid: storing passwords directly or using unsalted hashes. Always use a password hashing library.
-
-## 9. AI/LLM Pipeline
-
-AI workflows:
-
-- Resume parsing and skill extraction.
-- Question generation.
-- Answer evaluation.
-- Feedback generation.
-- Follow-up question generation.
-- Improvement roadmap generation.
-- Resume-job description matching.
-
-Production pattern:
+Backend flow:
 
 ```text
-Input validation
--> context selection
--> prompt template
--> LLM call
--> structured output validation
--> retry or repair if invalid
--> persistence
--> analytics update
+POST /live-interviews/sessions
+  -> create session
+  -> build profile context
+  -> generate opening question + hidden roadmap
+
+WebSocket transcript_delta
+  -> update live transcript buffer
+  -> detect vague or drifting answers
+  -> optionally send interviewer_interrupt
+
+WebSocket transcript_final
+  -> persist answer transcript
+  -> analyze candidate response
+  -> update interview brain state
+  -> choose next interviewer strategy
+  -> stream contextual follow-up
+
+GET /live-interviews/sessions/{id}/report
+  -> evaluate transcript replay
+  -> return structured feedback report
 ```
 
-Avoid building a simple "send text to model and display response" app. The recruiter-impressive part is structured AI behavior, scoring consistency, observability, and continuous improvement.
+Key design decision: the live interview screen stays minimal. Analytics, scores, and charts are intentionally moved to the final feedback report so the round feels like a real interview.
 
-## 10. Prompt Engineering
+## Screenshots
 
-See [docs/PROMPTS.md](docs/PROMPTS.md).
+Add screenshots here after the next UI pass:
 
-Prompt principles:
+- Landing page
+- Customize mock interview screen
+- Waiting room
+- Live interview room
+- Coding round
+- Feedback report
 
-- Use structured JSON outputs.
-- Use explicit scoring rubrics.
-- Separate generation from evaluation.
-- Store prompt versions.
-- Include constraints and refusal rules.
-- Keep prompts deterministic where scoring matters.
-- Evaluate against role level, not generic correctness.
-
-## 11. RAG Architecture
-
-RAG is used for personalized interviews from resume, projects, and job descriptions.
-
-Pipeline:
+Recommended filenames:
 
 ```text
-Resume text
--> clean and section
--> chunk by semantic sections
--> embed chunks
--> store vectors with metadata
--> retrieve top relevant chunks per question generation/evaluation
--> pass retrieved context into prompt
+docs/screenshots/landing.png
+docs/screenshots/setup.png
+docs/screenshots/waiting-room.png
+docs/screenshots/live-interview.png
+docs/screenshots/report.png
 ```
 
-ChromaDB is good for local MVP. Pinecone is better when you want managed hosting, scaling, and production operations.
+## Setup Instructions
 
-## 12. Folder Structure
-
-Planned production folder structure:
-
-```text
-ai-interview-copilot/
-  backend/
-    app/
-      api/
-        v1/
-          routers/
-      core/
-      db/
-      models/
-      schemas/
-      repositories/
-      services/
-      ai/
-        providers/
-        prompts/
-        pipelines/
-        evaluators/
-        embeddings/
-      workers/
-      observability/
-      tests/
-    alembic/
-    Dockerfile
-    pyproject.toml
-  frontend/
-    video_interview_app/
-      src/
-      package.json
-    streamlit_app/
-      app.py
-      pages/
-      components/
-      services/
-    Dockerfile
-  docs/
-  infra/
-    docker/
-    nginx/
-    github-actions/
-  scripts/
-  README.md
-  AGENTS.md
-  CHANGELOG.md
-  .env.example
-```
-
-## 13. Development Roadmap
-
-See [docs/ROADMAP.md](docs/ROADMAP.md).
-See [docs/PRODUCT_FLOW.md](docs/PRODUCT_FLOW.md) for the actual seven-screen product flow.
-
-Short version:
-
-- Phase 1: Foundation, docs, repo structure, local environment.
-- Phase 2: video-based MVP interview room.
-- Phase 3: AI integration and structured evaluation.
-- Phase 4: RAG, adaptive interviews, analytics.
-- Phase 5: production hardening, auth, deployment, CI/CD.
-- Phase 6: scaling, observability, voice, real-time interviews.
-
-## 14. GitHub Workflow
-
-Branching:
-
-- `main`: stable deployable branch.
-- `dev`: integration branch if needed.
-- `feature/<area>-<short-name>`: feature work.
-- `fix/<area>-<short-name>`: bug fixes.
-
-Commit style:
-
-- `feat: add resume upload endpoint`
-- `fix: validate resume file size`
-- `docs: add architecture blueprint`
-- `test: cover answer evaluation scoring`
-- `chore: configure docker compose`
-
-PR expectations:
-
-- Clear summary.
-- Screenshots for UI changes.
-- API examples for backend changes.
-- Tests listed.
-- Known limitations.
-
-## 15. DevOps + Deployment
-
-MVP deployment:
-
-- Docker Compose with FastAPI, React video frontend, Streamlit, PostgreSQL, Redis, and ChromaDB.
-- Deploy backend and frontend on a cloud VM or container platform.
-- Use managed PostgreSQL for production when possible.
-
-Production deployment:
-
-- Nginx reverse proxy.
-- HTTPS with managed certificates.
-- GitHub Actions CI.
-- Separate dev/staging/prod configs.
-- Secrets stored in cloud secret manager, not committed.
-- Structured logs and health checks.
-
-## 16. Monitoring + Logging
-
-Track:
-
-- API latency and error rate.
-- LLM latency, token usage, provider errors, and estimated cost.
-- Job queue duration and failures.
-- Resume parsing failures.
-- Evaluation consistency issues.
-
-Recommended tools:
-
-- Python structured logging.
-- OpenTelemetry for traces.
-- Sentry for exceptions.
-- Prometheus + Grafana for metrics.
-- Langfuse or Helicone for LLM observability and prompt tracking.
-
-## 17. Security Best Practices
-
-Security concerns:
-
-- Resume files contain personal data.
-- LLM prompts may contain sensitive content.
-- User answers and feedback are private.
-
-Practices:
-
-- Hash passwords.
-- Validate file type and size.
-- Store uploads outside public web root.
-- Use signed URLs if object storage is added.
-- Enforce authorization on every user resource.
-- Rate-limit login, upload, and LLM-heavy endpoints.
-- Do not log full resume text or secrets.
-- Keep provider API keys in environment variables.
-
-## 18. Testing Strategy
-
-Testing layers:
-
-- Unit tests for parsers, scoring helpers, repositories, and services.
-- API tests using FastAPI TestClient or httpx.
-- Integration tests with test PostgreSQL.
-- Contract tests for response schemas.
-- Prompt regression tests with saved cases.
-- Smoke tests for Docker Compose.
-
-AI-specific testing:
-
-- Golden datasets for answer evaluation.
-- Prompt version comparisons.
-- JSON schema validation.
-- Rubric consistency checks.
-- Human review samples.
-
-## 19. Resume Positioning
-
-Strong resume bullet examples:
-
-- Built a live video-based AI interview preparation SaaS using FastAPI, PostgreSQL, React, browser media APIs, and LLM APIs to simulate realistic interview sessions.
-- Designed a structured LLM evaluation pipeline with rubric-based scoring, JSON validation, prompt versioning, and feedback generation for consistent answer assessment.
-- Implemented resume parsing, skill extraction, interview session history, analytics tracking, and asynchronous AI workflows using Celery and Redis.
-- Architected a RAG-based personalization layer with vector search over resume and job-description context to improve relevance of generated interview questions.
-- Containerized the platform with Docker Compose and planned production deployment with CI/CD, observability, rate limiting, and secure secret management.
-
-## 20. Interview Questions Recruiters May Ask
-
-Common questions:
-
-- Why did you choose FastAPI?
-- How do you prevent LLM hallucinations?
-- How does your scoring system stay consistent?
-- Why PostgreSQL instead of only a vector database?
-- How would you scale the system for 10,000 users?
-- How do you handle sensitive resume data?
-- What happens if the LLM provider is down?
-- How do you reduce AI costs?
-- How would you migrate from Streamlit to React?
-
-Short sample answer:
-
-> I separated the system into API, service, repository, and AI pipeline layers. The backend stores structured interview state in PostgreSQL, while vector search is used only for semantic retrieval. LLM calls are validated with Pydantic schemas, logged with prompt versions, and moved to async jobs when latency is high. This lets the product remain reliable even though the AI layer is probabilistic.
-
-## 21. Scaling Considerations
-
-Scale bottlenecks:
-
-- LLM latency and cost.
-- Resume parsing CPU time.
-- Vector search performance.
-- Database query patterns for analytics.
-- Long-running interview sessions.
-
-Scaling strategies:
-
-- Background jobs for heavy work.
-- Caching common prompts and generated question sets.
-- Rate limiting and per-user quotas.
-- Database indexes on user, session, and created timestamps.
-- Model fallback strategy.
-- Async streaming for live interview responses.
-- Separate read-heavy analytics from transactional writes later.
-
-## 22. Future Improvements
-
-High-impact improvements:
-
-- Voice interviews with speech-to-text and text-to-speech.
-- WebSocket-based live interview simulation.
-- Company-specific interview packs.
-- Multi-agent interview panel.
-- Prompt evaluation dashboard.
-- Feature flags for AI experiments.
-- Benchmark set for scoring quality.
-- Next.js frontend.
-- Mobile-responsive candidate dashboard.
-- Deployment to a public cloud with demo credentials.
-
-## Local Development Status
-
-Current status: Phase 1 backend foundation is initialized. Product direction has been tightened: the MVP should be a live video-based interview simulation, not a text-first mock interview.
-
-Run backend locally:
+### 1. Clone the repository
 
 ```powershell
-.\.venv\Scripts\python.exe -m pip install -e ".\backend[dev]"
+git clone https://github.com/harshraj78/viewBuddy.ai.git
+cd "viewBuddy.ai"
+```
+
+### 2. Backend setup
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
 cd backend
-..\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+pip install -e ".[dev]"
+copy ..\.env.example ..\.env
 ```
 
-Health check:
+Update `.env` with your Gemini key:
+
+```text
+INTERVIEW_LLM_PROVIDER=gemini
+GEMINI_API_KEY=your_key_here
+GEMINI_MODEL=gemini-2.5-flash
+```
+
+Run the backend:
 
 ```powershell
-Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/v1/health"
+cd backend
+..\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8020 --reload
 ```
 
-Run Streamlit locally:
+Smoke test:
 
 ```powershell
-$env:API_BASE_URL="http://127.0.0.1:8000/api/v1"
-.\.venv\Scripts\python.exe -m streamlit run frontend\streamlit_app\app.py
+Invoke-RestMethod http://127.0.0.1:8020/api/v1/health
+Invoke-RestMethod http://127.0.0.1:8020/api/v1/ai/status
 ```
 
-Run the video interview room locally:
+### 3. Frontend setup
 
 ```powershell
 cd frontend\video_interview_app
 npm install
-$env:VITE_API_BASE_URL="http://127.0.0.1:8020/api/v1"
 npm run dev
 ```
 
@@ -546,21 +182,78 @@ Open:
 http://127.0.0.1:5173
 ```
 
-Important MVP direction:
+For deployed Vercel builds, set:
 
-- Streamlit is useful for quick admin/demo screens.
-- The candidate-facing MVP should become a live video interview room.
-- React/Next.js is preferred for camera, microphone, recording, WebSocket state, and a polished interview experience.
-- Backend APIs should support live sessions, transcripts, evaluation, and follow-up questions.
-- Current voice MVP uses browser speech recognition and speech synthesis; production realtime should move to OpenAI Realtime API and LiveKit.
-- Current feedback MVP generates a deterministic scorecard from submitted transcripts; production evaluation should use versioned LLM rubrics.
-- AI evaluation can run in fallback mode locally or LLM mode with `AI_EVALUATION_MODE=llm` and `OPENAI_API_KEY`.
-- Realtime interview orchestration uses FastAPI WebSockets plus browser STT/TTS. Gemini follow-ups can be enabled with `GEMINI_API_KEY`; otherwise the app uses a zero-cost fallback interviewer.
-
-Quality checks:
-
-```powershell
-cd backend
-..\.venv\Scripts\python.exe -m ruff check .
-..\.venv\Scripts\python.exe -m pytest tests
+```text
+VITE_API_BASE_URL=https://your-render-backend.onrender.com/api/v1
 ```
+
+## API Endpoints
+
+Health and diagnostics:
+
+- `GET /api/v1/health`
+- `GET /api/v1/ai/status`
+
+Live interview:
+
+- `POST /api/v1/live-interviews/sessions`
+- `GET /api/v1/live-interviews/sessions/{session_id}`
+- `POST /api/v1/live-interviews/sessions/{session_id}/next-question`
+- `POST /api/v1/live-interviews/sessions/{session_id}/transcript`
+- `GET /api/v1/live-interviews/sessions/{session_id}/report`
+- `WS /api/v1/live-interviews/sessions/{session_id}/ws`
+
+WebSocket events:
+
+- `session_start`
+- `transcript_delta`
+- `transcript_final`
+- `ai_response_chunk`
+- `interviewer_interrupt`
+- `followup_question`
+- `state_transition`
+- `interview_complete`
+- `error`
+
+Example session request:
+
+```json
+{
+  "candidate_name": "Harsh Raj",
+  "target_role": "AI Engineer",
+  "mode": "technical",
+  "difficulty": "beginner",
+  "target_company": "Indian Product",
+  "interviewer_persona": "Senior Engineer - Strict",
+  "interviewer_accent": "Indian English",
+  "candidate_skills": ["FastAPI", "PostgreSQL", "RAG", "React"],
+  "project_highlights": ["AI Interview Copilot"],
+  "resume_summary": "Built a resume-aware mock interview platform with realtime voice flow.",
+  "question_count": 5
+}
+```
+
+## Challenges Faced
+
+- Making the AI feel like a real interviewer instead of a generated question list
+- Avoiding duplicate WebSocket transcript events and repeated follow-ups
+- Preventing overlapping browser speech synthesis and microphone recognition
+- Handling Vercel-to-Render CORS preflight failures
+- Supporting Gemini, local open-source models, and deterministic fallback through one model boundary
+- Keeping the live interview UI focused while still supporting transcript, notes, coding, and feedback flows
+- Designing a zero-cost MVP without paid realtime APIs, LiveKit, or OpenAI Realtime
+
+## Future Improvements
+
+- PostgreSQL-backed persistence for live sessions and interview messages
+- Supabase authentication and user profiles
+- Real resume upload, PDF parsing, chunking, embeddings, and pgvector retrieval
+- Monaco-based coding round with sandboxed execution
+- Whiteboard canvas for system design interviews
+- WebRTC media transport for richer realtime audio/video architecture
+- Better streaming STT/TTS once moving beyond browser-native APIs
+- Prompt and model evaluation benchmark suite
+- Dataset export pipeline for LoRA/QLoRA fine-tuning of interviewer behavior
+- Observability with LLM latency, token usage, transcript events, and follow-up quality metrics
+- GitHub Actions CI for linting, tests, frontend build, and deployment checks

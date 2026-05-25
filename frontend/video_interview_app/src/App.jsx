@@ -62,8 +62,12 @@ function App() {
   const questionRef = useRef(null);
   const setupRef = useRef(null);
   const sessionRef = useRef(null);
+  const answerTextRef = useRef("");
   const isRecordingRef = useRef(false);
   const isSpeakingRef = useRef(false);
+  const isSubmittingTranscriptRef = useRef(false);
+  const transcriptStartedAtRef = useRef(null);
+  const lastTranscriptDeltaAtRef = useRef(0);
   const processedSocketMessagesRef = useRef(new Set());
   const [screen, setScreen] = useState("landing");
   const [stream, setStream] = useState(null);
@@ -124,6 +128,10 @@ function App() {
   }, [isSpeaking]);
 
   useEffect(() => {
+    answerTextRef.current = answerText;
+  }, [answerText]);
+
+  useEffect(() => {
     return () => {
       window.speechSynthesis?.cancel();
       recognitionRef.current?.stop();
@@ -143,6 +151,11 @@ function App() {
 
   function updateSetup(field, value) {
     setSetup((current) => ({ ...current, [field]: value }));
+  }
+
+  function updateAnswerText(value) {
+    answerTextRef.current = value;
+    setAnswerText(value);
   }
 
   function appendConversationMessage(message) {
@@ -247,7 +260,7 @@ function App() {
       const payload = await response.json();
       setQuestion(payload.question);
       setStreamedAiText("");
-      setAnswerText("");
+      updateAnswerText("");
       if (payload.question?.question_text) {
         appendConversationMessage({
           id: payload.question.id,
@@ -277,7 +290,8 @@ function App() {
       recognitionRef.current = null;
       setIsRecording(false);
       setIsListening(false);
-      setStatus("Recording saved locally");
+      setStatus("Processing answer");
+      submitTranscript(answerTextRef.current);
       return;
     }
 
@@ -290,6 +304,7 @@ function App() {
     const recorder = new MediaRecorder(stream);
     mediaRecorderRef.current = recorder;
     recorder.start();
+    transcriptStartedAtRef.current = Date.now();
     isRecordingRef.current = true;
     startSpeechRecognition();
     setIsRecording(true);
@@ -326,7 +341,9 @@ function App() {
           interimTranscript += `${result[0].transcript} `;
         }
       }
-      setAnswerText(`${finalTranscript}${interimTranscript}`.trim());
+      const transcript = `${finalTranscript}${interimTranscript}`.trim();
+      updateAnswerText(transcript);
+      sendLiveTranscriptDelta(transcript);
     };
     recognition.onerror = () => {
       setVoiceMessage("Speech recognition paused. You can continue by typing.");
@@ -376,23 +393,62 @@ function App() {
       isSpeakingRef.current = false;
       setIsSpeaking(false);
       setVoiceMessage("Your turn to answer.");
+      if (isRecordingRef.current && !recognitionRef.current) {
+        window.setTimeout(() => {
+          if (isRecordingRef.current && !isSpeakingRef.current && !recognitionRef.current) {
+            startSpeechRecognition();
+          }
+        }, 250);
+      }
     };
     utterance.onerror = () => {
       isSpeakingRef.current = false;
       setIsSpeaking(false);
       setVoiceMessage("Voice playback stopped.");
+      if (isRecordingRef.current && !recognitionRef.current) {
+        startSpeechRecognition();
+      }
     };
     window.speechSynthesis.speak(utterance);
   }
 
-  async function submitTranscript() {
+  function sendLiveTranscriptDelta(transcript) {
+    const activeQuestion = questionRef.current;
+    if (!activeQuestion || !transcript) return;
+
+    const now = Date.now();
+    if (now - lastTranscriptDeltaAtRef.current < 700) return;
+    lastTranscriptDeltaAtRef.current = now;
+
+    sendInterviewEvent(
+      "transcript_delta",
+      {
+        question_id: activeQuestion.id,
+        question: activeQuestion.question_text,
+        transcript,
+        personality: setupRef.current?.personality,
+      },
+      createClientId("delta"),
+      { silentWhenClosed: true },
+    );
+  }
+
+  async function submitTranscript(transcriptOverride = answerTextRef.current) {
     const activeSession = sessionRef.current;
     const activeQuestion = questionRef.current;
-    const transcript = answerText.trim();
+    const transcript =
+      typeof transcriptOverride === "string"
+        ? transcriptOverride.trim()
+        : answerTextRef.current.trim();
     if (!activeSession || !activeQuestion || !transcript) return;
+    if (isSubmittingTranscriptRef.current) return;
+    isSubmittingTranscriptRef.current = true;
     setError("");
     setStatus("Submitting answer");
     const clientEventId = createClientId("transcript");
+    const durationSeconds = transcriptStartedAtRef.current
+      ? Math.max(1, Math.round((Date.now() - transcriptStartedAtRef.current) / 1000))
+      : 60;
     try {
       const response = await fetch(
         `${API_BASE_URL}/live-interviews/sessions/${activeSession.session_id}/transcript`,
@@ -402,7 +458,7 @@ function App() {
           body: JSON.stringify({
             question_id: activeQuestion.id,
             transcript,
-            duration_seconds: 60,
+            duration_seconds: durationSeconds,
           }),
         },
       );
@@ -414,20 +470,24 @@ function App() {
         text: transcript,
       });
       sendInterviewEvent(
-        "transcript_chunk",
+        "transcript_final",
         {
+          question_id: activeQuestion.id,
           question: activeQuestion.question_text,
           transcript,
           personality: setupRef.current?.personality,
         },
         clientEventId,
       );
-      setAnswerText("");
+      updateAnswerText("");
+      transcriptStartedAtRef.current = null;
       setStatus("Answer queued for evaluation");
       await loadReport();
     } catch (caughtError) {
       setError(caughtError.message);
       setStatus("Answering");
+    } finally {
+      isSubmittingTranscriptRef.current = false;
     }
   }
 
@@ -470,9 +530,20 @@ function App() {
           expected_answer_seconds: 90,
           preparation_seconds: 5,
         });
-        setAnswerText("");
+        updateAnswerText("");
         setStreamedAiText("");
         speakQuestion(followup);
+      }
+      if (event.type === "interviewer_interrupt") {
+        const text = event.payload.text ?? "";
+        if (!text) return;
+        appendConversationMessage({
+          id: event.payload.message_id ?? createClientId("interrupt"),
+          speaker: "interviewer",
+          text,
+        });
+        setVoiceMessage("Interviewer redirected your answer.");
+        speakQuestion(text);
       }
       if (event.type === "state_transition") {
         setStatus(`State: ${event.payload.state}`);
@@ -484,9 +555,16 @@ function App() {
     socket.onclose = () => setVoiceMessage("Realtime connection closed.");
   }
 
-  function sendInterviewEvent(type, payload, eventId = createClientId(type)) {
+  function sendInterviewEvent(
+    type,
+    payload,
+    eventId = createClientId(type),
+    options = {},
+  ) {
     if (websocketRef.current?.readyState !== WebSocket.OPEN) {
-      setVoiceMessage("Realtime socket is not connected. REST transcript was still saved.");
+      if (!options.silentWhenClosed) {
+        setVoiceMessage("Realtime socket is not connected. REST transcript was still saved.");
+      }
       return;
     }
     websocketRef.current.send(JSON.stringify({ type, payload, event_id: eventId }));
@@ -567,7 +645,7 @@ function App() {
           conversationMessages={conversationMessages}
           error={error}
           onToggleTranscript={() => setTranscriptOpen((current) => !current)}
-          onAnswerText={setAnswerText}
+          onAnswerText={updateAnswerText}
           onToggleRecording={toggleRecording}
           onSpeakQuestion={() => speakQuestion()}
           onSubmitTranscript={submitTranscript}
@@ -592,7 +670,7 @@ function App() {
             setSession(null);
             setQuestion(null);
             setReport(null);
-            setAnswerText("");
+            updateAnswerText("");
             setConversationMessages([]);
             setStreamedAiText("");
             setScreen("setup");
@@ -836,7 +914,7 @@ function PhaseRail({ active = "Intro" }) {
     <div className="phase-rail">
       {liveStages.map((stage) => (
         <span className={stage === active ? "phase active" : "phase"} key={stage}>
-          {stage === "Intro" ? "✓" : "●"} {stage}
+          {stage === "Intro" ? "done" : "dot"} {stage}
         </span>
       ))}
     </div>

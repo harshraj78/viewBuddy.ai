@@ -128,8 +128,11 @@ class FeedbackReportResponse(BaseModel):
 
 class WebSocketEventType(StrEnum):
     session_start = "session_start"
+    transcript_delta = "transcript_delta"
+    transcript_final = "transcript_final"
     transcript_chunk = "transcript_chunk"
     ai_response_chunk = "ai_response_chunk"
+    interviewer_interrupt = "interviewer_interrupt"
     interviewer_question = "interviewer_question"
     followup_question = "followup_question"
     state_transition = "state_transition"

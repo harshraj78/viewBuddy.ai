@@ -49,6 +49,9 @@ class LiveInterviewSession:
     latest_analysis: AnswerAnalysis | None = None
     latest_move: InterviewMove | None = None
     processed_event_ids: set[str] = field(default_factory=set)
+    live_transcript_buffer: str = ""
+    last_interim_transcript: str = ""
+    last_interrupt_signature: str | None = None
 
 
 class LiveInterviewService:
@@ -190,6 +193,77 @@ class LiveInterviewService:
 
         session.processed_event_ids.add(event_id)
         return True
+
+    def update_live_transcript(
+        self,
+        session_id: UUID,
+        *,
+        transcript: str,
+        is_final: bool = False,
+    ) -> str:
+        session = self._get_session(session_id)
+        cleaned = " ".join(transcript.split())
+        if not cleaned:
+            return session.live_transcript_buffer
+
+        if is_final:
+            session.live_transcript_buffer = cleaned
+            session.last_interim_transcript = ""
+            return session.live_transcript_buffer
+
+        session.last_interim_transcript = cleaned
+        if len(cleaned) > len(session.live_transcript_buffer):
+            session.live_transcript_buffer = cleaned
+        return session.live_transcript_buffer
+
+    def clear_live_transcript(self, session_id: UUID) -> None:
+        session = self._get_session(session_id)
+        session.live_transcript_buffer = ""
+        session.last_interim_transcript = ""
+        session.last_interrupt_signature = None
+
+    def plan_live_interrupt(self, session_id: UUID, transcript: str) -> dict[str, str] | None:
+        session = self._get_session(session_id)
+        words = transcript.split()
+        if len(words) < 32:
+            return None
+
+        lowered = transcript.lower()
+        vague_markers = ("basically", "kind of", "somehow", "stuff", "things", "maybe", "i think")
+        structure_markers = (
+            "because",
+            "tradeoff",
+            "latency",
+            "scale",
+            "metric",
+            "failure",
+            "debug",
+        )
+        vague_count = sum(marker in lowered for marker in vague_markers)
+        has_structure = any(marker in lowered for marker in structure_markers)
+
+        if vague_count >= 2:
+            signature = "vague"
+            message = (
+                "Pause for a second. Give me one concrete implementation detail, "
+                "not a high-level summary."
+            )
+            reason = "vague_answer"
+        elif len(words) >= 80 and not has_structure:
+            signature = "unstructured"
+            message = (
+                "Let me redirect you. What was the exact tradeoff or failure mode "
+                "you handled there?"
+            )
+            reason = "missing_tradeoff"
+        else:
+            return None
+
+        if session.last_interrupt_signature == signature:
+            return None
+
+        session.last_interrupt_signature = signature
+        return {"message": message, "reason": reason}
 
     def add_followup_question(
         self,

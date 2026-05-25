@@ -47,6 +47,8 @@ The format follows Keep a Changelog principles, and this project aims to use sem
 - CORS regression tests for Vercel-to-Render preflight requests.
 - MockAI-style interview customization, waiting room, live room, phase rail, and interrupt UI.
 - Interviewer persona/accent/candidate metadata fields for richer AI context.
+- WebSocket `transcript_delta`, `transcript_final`, and `interviewer_interrupt` events for a more realtime interview loop.
+- Live transcript buffering and lightweight answer-drift detection during candidate speech.
 
 ### Changed
 
@@ -63,6 +65,8 @@ The format follows Keep a Changelog principles, and this project aims to use sem
 - Backend Docker startup now respects cloud platform `PORT`.
 - CORS origin settings now use comma-separated env parsing that works on Render.
 - Candidate-facing flow now prioritizes realistic interview room interaction over dashboard-style layout.
+- Browser speech recognition now streams interim transcript updates and finalizes the answer when recording stops.
+- README now uses a recruiter-friendly project structure with problem statement, features, architecture, setup, APIs, challenges, and future improvements.
 
 ### Fixed
 
