@@ -53,6 +53,10 @@ The format follows Keep a Changelog principles, and this project aims to use sem
 - Live transcript buffering and lightweight answer-drift detection during candidate speech.
 - Light/dark theme toggle and responsive mobile layout improvements for the candidate frontend.
 - Premium roadmap marker for subscription-only interview capabilities.
+- Role/use-case landing page with searchable role cards.
+- Interview details flow with resume upload, round selection, difficulty, duration, interviewer cards, and profile context.
+- Prerequisite waiting room with instructions, media checklist, and clearer start-practice gate.
+- Browser TTS accent/voice selection for Indian, US, and British English voice preference.
 
 ### Changed
 
@@ -78,6 +82,8 @@ The format follows Keep a Changelog principles, and this project aims to use sem
 - README now uses a recruiter-friendly project structure with problem statement, features, architecture, setup, APIs, challenges, and future improvements.
 - Interview setup now uses a single resume upload input instead of manual skills, project highlights, and resume summary fields.
 - Interview planner now derives skill/project memory from resume context when explicit profile fields are absent.
+- Live interviewer prompt now enforces a human-style turn shape: specific acknowledgement, short bridge, and one targeted follow-up.
+- Fallback interviewer wording now uses less repetitive transition phrases.
 
 ### Fixed
 
@@ -89,6 +95,7 @@ The format follows Keep a Changelog principles, and this project aims to use sem
 - Fixed initial interview questions still feeling hardcoded even when Gemini was configured.
 - Fixed Render startup failure caused by list parsing for `BACKEND_CORS_ORIGINS`.
 - Fixed Vercel `OPTIONS /api/v1/live-interviews/sessions` preflight returning 400.
+- Improved responsive styling and light/dark contrast for the new role, setup, and prerequisite screens.
 
 ### Security
 

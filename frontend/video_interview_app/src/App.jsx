@@ -9,15 +9,12 @@ import {
   Clock3,
   Code2,
   FileText,
-  Headphones,
   Hand,
   LayoutTemplate,
   Mic,
-  Mic2,
   Moon,
   Play,
   Send,
-  Share2,
   Sparkles,
   Sun,
   Video,
@@ -32,7 +29,22 @@ const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8020/api/v1";
 
 const roles = ["SDE", "AI Engineer", "Backend", "Frontend"];
-const experiences = ["Entry Level", "Fresher", "Mid-level"];
+const roleLibrary = [
+  "Full Stack Developer",
+  "Software Engineer",
+  "AI Engineer",
+  "Backend Developer",
+  "Frontend Developer",
+  "Data Analyst",
+  "Data Scientist",
+  "Cybersecurity Analyst",
+  "Product Manager",
+  "Business Analyst",
+  "Project Manager",
+  "Web Designer",
+];
+const roleTabs = ["Role Based", "Company Based", "JD Based", "Resume Toolkit", "Create Your Own"];
+const experiences = ["Fresher", "Experienced", "Intern"];
 const interviewTypes = [
   "Full Interview (45 mins)",
   "Technical",
@@ -41,10 +53,47 @@ const interviewTypes = [
   "System Design",
 ];
 const companyStyles = ["FAANG", "Startup", "Indian Product"];
-const interviewers = ["Basic Interviewer", "Senior Engineer", "FAANG Bar Raiser"];
+const interviewers = ["Payal", "Emma", "John", "Kapil"];
+const interviewerProfiles = {
+  Payal: { accent: "Indian English", style: "Warm technical mentor", initial: "P" },
+  Emma: { accent: "US English", style: "Calm product interviewer", initial: "E" },
+  John: { accent: "US English", style: "Senior engineering manager", initial: "J" },
+  Kapil: { accent: "Indian English", style: "Strict technical lead", initial: "K" },
+};
 const personalities = ["Easy Going", "Friendly", "Strict", "FAANG pressure"];
 const accents = ["US American", "Indian English", "British English"];
 const liveStages = ["Intro", "Clarify", "Discuss", "Coding", "Testing", "Complexity", "Outro"];
+const roundOptions = [
+  {
+    value: "Technical",
+    title: "Role Related",
+    subtitle: "Technical",
+    detail: "Project depth, implementation tradeoffs, debugging, and production readiness.",
+  },
+  {
+    value: "Coding Interview",
+    title: "Coding",
+    subtitle: "Programming",
+    detail: "Algorithm questions with an editor, tests, terminal output, and approach discussion.",
+  },
+  {
+    value: "HR",
+    title: "Behavioral",
+    subtitle: "HR",
+    detail: "Communication, ownership, collaboration, and leadership examples.",
+  },
+  {
+    value: "System Design",
+    title: "System Design",
+    subtitle: "Architecture",
+    detail: "APIs, data model, scaling, bottlenecks, and failure handling.",
+  },
+];
+const durationOptions = [
+  { label: "5 mins", minutes: 5, premium: false },
+  { label: "15 mins", minutes: 15, premium: true },
+  { label: "30 mins", minutes: 30, premium: true },
+];
 
 const screenOrder = [
   "landing",
@@ -98,13 +147,16 @@ function App() {
   );
   const [setup, setSetup] = useState({
     role: "AI Engineer",
-    experience: "Entry Level",
+    experience: "Fresher",
     interviewType: "Full Interview (45 mins)",
     companyStyle: "Indian Product",
-    interviewer: "Basic Interviewer",
+    interviewer: "John",
     personality: "Easy Going",
     accent: "US American",
     candidateName: "Harsh Raj",
+    durationMinutes: 5,
+    location: "India",
+    education: "",
     resumeName: "",
     resumeContext: "",
   });
@@ -283,8 +335,8 @@ function App() {
           target_company: setup.companyStyle,
           interviewer_name: selectedInterviewerName(setup),
           interviewer_persona: `${setup.interviewer} - ${setup.personality}`,
-          interviewer_accent: setup.accent,
-          interview_duration_minutes: setup.interviewType.includes("45") ? 45 : 30,
+          interviewer_accent: interviewerProfiles[setup.interviewer]?.accent ?? setup.accent,
+          interview_duration_minutes: setup.durationMinutes,
           candidate_skills: [],
           project_highlights: [],
           resume_summary: buildResumeContext(setup),
@@ -472,7 +524,9 @@ function App() {
     setIsSpeaking(true);
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = "en-IN";
+    const voice = selectVoiceForAccent(setupRef.current?.accent);
+    if (voice) utterance.voice = voice;
+    utterance.lang = voice?.lang ?? accentToLang(setupRef.current?.accent);
     utterance.rate = setupRef.current?.personality === "FAANG pressure" ? 1.06 : 0.96;
     utterance.pitch = setupRef.current?.personality === "Easy Going" ? 1.04 : 0.94;
     utterance.onstart = () => {
@@ -722,6 +776,10 @@ function App() {
       {screen === "landing" ? (
         <LandingScreen
           onStart={() => setScreen("setup")}
+          onSelectRole={(role) => {
+            updateSetup("role", role);
+            setScreen("setup");
+          }}
           theme={theme}
           onToggleTheme={() => setTheme((current) => (current === "dark" ? "light" : "dark"))}
         />
@@ -806,9 +864,25 @@ function normalizeInterviewMode(value) {
 }
 
 function selectedInterviewerName(setup) {
-  if (setup.interviewer === "FAANG Bar Raiser") return "Sarah";
-  if (setup.interviewer === "Senior Engineer") return "Alex";
-  return "Sarah";
+  return setup.interviewer || "John";
+}
+
+function accentToLang(accent) {
+  if (accent === "British English") return "en-GB";
+  if (accent === "US American" || accent === "US English") return "en-US";
+  return "en-IN";
+}
+
+function selectVoiceForAccent(accent) {
+  if (!window.speechSynthesis?.getVoices) return null;
+  const voices = window.speechSynthesis.getVoices();
+  const preferredLang = accentToLang(accent);
+  return (
+    voices.find((voice) => voice.lang === preferredLang && /female|neural|natural/i.test(voice.name))
+    || voices.find((voice) => voice.lang === preferredLang)
+    || voices.find((voice) => voice.lang?.startsWith(preferredLang.slice(0, 2)))
+    || null
+  );
 }
 
 function buildResumeContext(setup) {
@@ -816,6 +890,7 @@ function buildResumeContext(setup) {
   return [
     setup.resumeContext || `Resume file uploaded: ${setup.resumeName}.`,
     `Interview target: ${setup.role}, ${setup.companyStyle}, ${setup.experience}.`,
+    `Candidate context: located in ${setup.location}; education: ${setup.education || "not provided"}.`,
     "Use this resume context as the primary memory source for resume-based questions.",
   ].join("\n");
 }
@@ -855,160 +930,289 @@ const screenLabels = {
   report: "Feedback report",
 };
 
-function LandingScreen({ onStart, theme, onToggleTheme }) {
+function LandingScreen({ onStart, onSelectRole, theme, onToggleTheme }) {
+  const [activeTab, setActiveTab] = useState("Role Based");
+  const [roleSearch, setRoleSearch] = useState("");
+  const filteredRoles = roleLibrary.filter((role) =>
+    role.toLowerCase().includes(roleSearch.toLowerCase()),
+  );
+
   return (
     <section className="landing">
       <nav className="nav">
         <strong>viewBuddy.ai</strong>
+        <div className="nav-links">
+          <span>Use Cases</span>
+          <span>Resources</span>
+          <span>Pricing</span>
+          <span>Contact Us</span>
+        </div>
         <div className="nav-actions">
           <ThemeToggle theme={theme} onToggleTheme={onToggleTheme} />
-          <button className="ghost compact" onClick={onStart}>Start interview</button>
+          <button className="ghost compact" onClick={onStart}>Sign up</button>
         </div>
       </nav>
 
-      <section className="hero">
-        <div>
-          <p className="eyebrow">AI mock interviews for serious candidates</p>
-          <h1>Practice like it is a real video interview.</h1>
-          <p className="hero-copy">
-            Role-specific AI interviews for SDE, AI Engineer, backend, and frontend
-            candidates. Built around live conversation, not dashboard noise.
-          </p>
-          <button className="primary wide" onClick={onStart}>
-            <Play size={18} />
-            Start interview
-          </button>
+      <section className="role-hero">
+        <div className="role-tabs">
+          {roleTabs.map((tab) => (
+            <button
+              className={activeTab === tab ? "role-tab active" : "role-tab"}
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+            >
+              {tab}
+            </button>
+          ))}
         </div>
-        <div className="demo-preview">
-          <div className="mock-video">
-            <Bot size={44} />
-            <span>AI Interviewer</span>
-          </div>
-          <div className="mock-question">
-            Explain one project where you made an engineering tradeoff.
-          </div>
-        </div>
-      </section>
-
-      <section className="section-band">
-        <SectionTitle title="Interview types" />
-        <div className="three-grid">
-          <InfoCard icon={<Mic2 />} title="Technical" text="Project deep dives, fundamentals, and production thinking." />
-          <InfoCard icon={<Code2 />} title="Coding" text="LeetCode-style rounds with hints and optimization probes." />
-          <InfoCard icon={<LayoutTemplate />} title="System design" text="Architecture prompts with a focused whiteboard mode." />
+        <p className="pill">3000+ roles available</p>
+        <h1>
+          Role-Specific
+          <span> AI Mock Interviews</span>
+        </h1>
+        <p className="hero-copy">
+          Practice role-specific interviews with realistic questions, voice-based
+          interviewer flow, coding rounds, and instant feedback reports.
+        </p>
+        <div className="role-search">
+          <input
+            value={roleSearch}
+            onChange={(event) => setRoleSearch(event.target.value)}
+            placeholder="Search for roles, e.g. Software Engineer, Data Analyst"
+          />
+          <button className="primary" onClick={onStart}>Search</button>
         </div>
       </section>
 
       <section className="section-band">
-        <SectionTitle title="What candidates say" />
-        <div className="three-grid">
-          <Quote text="The waiting room made it feel like an actual interview, not another chatbot." />
-          <Quote text="Follow-up questions forced me to explain tradeoffs clearly." />
-          <Quote text="The report separated communication gaps from technical gaps." />
+        <SectionTitle title="Roles" />
+        <div className="role-grid">
+          {filteredRoles.map((role) => (
+            <button className="role-card" key={role} onClick={() => onSelectRole(role)}>
+              {role}
+            </button>
+          ))}
         </div>
-      </section>
-
-      <section className="cta-strip">
-        <h2>Ready for your next mock interview?</h2>
-        <button className="primary" onClick={onStart}>
-          <Video size={18} />
-          Enter setup
-        </button>
       </section>
     </section>
   );
 }
 
 function SetupScreen({ setup, interviewerTone, onChange, onResumeFile, onNext }) {
+  const selectedRound = roundOptions.find((round) => round.value === setup.interviewType)
+    ?? roundOptions[0];
+
   return (
-    <section className="customize-shell">
-      <div className="customize-card">
-        <h1>Customize Your Mock Interview</h1>
-        <p className="muted-copy">
-          You can customize the personality and the accent of the interviewer.
-        </p>
-        <SelectGroup label="Interviewer" value={setup.interviewer} options={interviewers} onChange={(value) => onChange("interviewer", value)} />
-        <SelectGroup label="Interview Mode" value={setup.interviewType} options={interviewTypes} onChange={(value) => onChange("interviewType", value)} badge="New" />
-        <SelectGroup label="Difficulty" value={setup.experience} options={experiences} onChange={(value) => onChange("experience", value)} />
-        <SelectGroup label="Personality" value={setup.personality} options={personalities} onChange={(value) => onChange("personality", value)} />
-        <SelectGroup label="Accent" value={setup.accent} options={accents} onChange={(value) => onChange("accent", value)} emphasized />
-        <SelectGroup label="Role" value={setup.role} options={roles} onChange={(value) => onChange("role", value)} />
-        <SelectGroup label="Company style" value={setup.companyStyle} options={companyStyles} onChange={(value) => onChange("companyStyle", value)} />
-        <TextInputGroup label="Candidate name" value={setup.candidateName} onChange={(value) => onChange("candidateName", value)} />
-        <label className={setup.resumeName ? "upload-box has-file" : "upload-box"}>
-          <FileText size={18} />
-          <span>{setup.resumeName || "Upload resume"}</span>
-          <input
-            type="file"
-            accept=".pdf,.docx,.txt,.md"
-            onChange={(event) => onResumeFile(event.target.files?.[0])}
-          />
-        </label>
-        <div className="premium-note">
-          <Sparkles size={17} />
-          <span>Premium roadmap: deeper resume memory, longer interviews, coding observation, and company-specific rounds.</span>
-        </div>
-        <div className="setup-footer-note">
-          <Headphones size={18} />
-          <span>This interview will take 45 minutes. Put on headphones for better sound quality.</span>
-        </div>
-        <div className="setup-actions">
-          <button className="ghost" onClick={() => onResumeFile(null)}>Clear resume</button>
-          <button className="primary" onClick={onNext}>
-            Start Interview
-            <Headphones size={17} />
-          </button>
-        </div>
-        <p className="setup-tone">{interviewerTone}</p>
+    <section className="details-shell">
+      <div className="details-header">
+        <p className="eyebrow">Interview Details</p>
+        <h1>{setup.role}</h1>
+        <span>{selectedRound.title}</span>
       </div>
+
+      <div className="details-grid">
+        <section className="details-card wide-card">
+          <div className="section-heading-row">
+            <div>
+              <h2>Resume Based Interview</h2>
+              <p className="muted-copy">Upload a resume for personalized follow-up questions.</p>
+            </div>
+            <label className={setup.resumeName ? "upload-button has-file" : "upload-button"}>
+              <FileText size={18} />
+              {setup.resumeName || "Upload Resume"}
+              <input
+                type="file"
+                accept=".pdf,.docx,.txt,.md"
+                onChange={(event) => onResumeFile(event.target.files?.[0])}
+              />
+            </label>
+          </div>
+        </section>
+
+        <section className="details-card wide-card">
+          <SectionTitle title="Select Round" />
+          <div className="round-grid">
+            {roundOptions.map((round) => (
+              <button
+                className={setup.interviewType === round.value ? "option-card active" : "option-card"}
+                key={round.value}
+                onClick={() => onChange("interviewType", round.value)}
+              >
+                <strong>{round.title}</strong>
+                <span>{round.subtitle}</span>
+              </button>
+            ))}
+          </div>
+          <div className="round-description">
+            <strong>{selectedRound.title}</strong>
+            <span>{selectedRound.detail}</span>
+          </div>
+        </section>
+
+        <section className="details-card">
+          <SectionTitle title="Difficulty Level" />
+          <div className="segmented-options">
+            {experiences.map((experience) => (
+              <button
+                className={setup.experience === experience ? "chip active" : "chip"}
+                key={experience}
+                onClick={() => onChange("experience", experience)}
+              >
+                {experience}
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="details-card">
+          <SectionTitle title="Interview Duration" />
+          <div className="segmented-options">
+            {durationOptions.map((duration) => (
+              <button
+                className={setup.durationMinutes === duration.minutes ? "chip active" : "chip"}
+                key={duration.minutes}
+                onClick={() => onChange("durationMinutes", duration.minutes)}
+              >
+                {duration.label}
+                {duration.premium ? " Premium" : ""}
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="details-card wide-card">
+          <SectionTitle title="Select Your Interviewer" />
+          <div className="interviewer-grid">
+            {interviewers.map((name) => {
+              const profile = interviewerProfiles[name];
+              return (
+                <button
+                  className={setup.interviewer === name ? "interviewer-card active" : "interviewer-card"}
+                  key={name}
+                  onClick={() => {
+                    onChange("interviewer", name);
+                    onChange("accent", profile.accent);
+                  }}
+                >
+                  <span className="mini-avatar">{profile.initial}</span>
+                  <strong>{name}</strong>
+                  <small>{profile.accent}</small>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className="details-card">
+          <SectionTitle title="Personalization" />
+          <SelectGroup label="Role" value={setup.role} options={roles} onChange={(value) => onChange("role", value)} />
+          <SelectGroup label="Company style" value={setup.companyStyle} options={companyStyles} onChange={(value) => onChange("companyStyle", value)} />
+          <SelectGroup label="Personality" value={setup.personality} options={personalities} onChange={(value) => onChange("personality", value)} />
+          <TextInputGroup label="Candidate name" value={setup.candidateName} onChange={(value) => onChange("candidateName", value)} />
+        </section>
+
+        <section className="details-card">
+          <SectionTitle title="Profile Context" />
+          <div className="profile-choice-list">
+            {["India", "United States", "Other Country"].map((location) => (
+              <button
+                className={setup.location === location ? "profile-choice active" : "profile-choice"}
+                key={location}
+                onClick={() => onChange("location", location)}
+              >
+                {location}
+              </button>
+            ))}
+          </div>
+          <TextInputGroup
+            label="College or school"
+            value={setup.education}
+            onChange={(value) => onChange("education", value)}
+          />
+        </section>
+
+        <section className="details-card wide-card">
+          <div className="premium-note">
+            <Sparkles size={17} />
+            <span>Premium roadmap: realistic neural voices, longer interviews, company-specific rounds, coding observation, replay analytics, and deeper resume memory.</span>
+          </div>
+        </section>
+
+        <section className="details-actions">
+          <button className="ghost" onClick={() => onResumeFile(null)}>Clear resume</button>
+          <button className="primary" onClick={onNext}>Start Practice</button>
+        </section>
+      </div>
+
+      <p className="setup-tone">{interviewerTone}</p>
     </section>
   );
 }
 
 function WaitingRoom({ stream, videoRef, setup, error, onEnableMedia, onStartInterview }) {
+  const checklist = [
+    "Interview setup completed.",
+    "Your browser is compatible with our system.",
+    stream ? "The microphone is enabled." : "Enable microphone before starting.",
+    stream ? "The camera is enabled." : "Enable camera before starting.",
+    "Use headphones for the best voice quality.",
+    "Keep internet connection stable during the interview.",
+  ];
+
   return (
-    <section className="mock-waiting">
-      <BrandBar />
-      <div className="waiting-stage">
-        <div className="candidate-preview">
-          <VideoTile stream={stream} videoRef={videoRef} />
-          <div className="avatar-fallback">{setup.candidateName?.[0] ?? "C"}</div>
-          <div className="waiting-controls">
-            <button className="round-danger" onClick={onEnableMedia}><Mic size={18} /></button>
-            <button className="round-danger" onClick={onEnableMedia}><CameraOff size={18} /></button>
-          </div>
-          <span className="candidate-label">{setup.candidateName}</span>
-        </div>
+    <section className="prereq-shell">
+      <div className="prereq-top">
+        <h1>Practice Prerequisite</h1>
+        <button className="theme-toggle" aria-label="Close">x</button>
       </div>
 
-      <div className="waiting-form">
-        <h1>Welcome to the Interview</h1>
-        <TextInputGroup label="Name" value={setup.candidateName} onChange={() => {}} readonly />
-        <div className="media-heading">Media Settings</div>
-        <button className="device-select" onClick={onEnableMedia}>
-          <Mic size={18} />
-          Audio Input
-          <ChevronDown size={18} />
-        </button>
-        <p className="muted-copy small">
-          Please enable audio access, select a functional audio device, and test it thoroughly before the interview starts.
-        </p>
-        <button className="device-select">
-          <Share2 size={18} />
-          Share your screen (optional)
-        </button>
-        <p className="muted-copy small">
-          Optional: share your screen to let ViewBuddy observe your coding process.
-        </p>
-        {error ? <p className="error">{error}</p> : null}
-        <button className="primary waiting-continue" disabled={!stream} onClick={onStartInterview}>
-          Continue
-        </button>
-        {!stream ? (
-          <button className="ghost waiting-continue" onClick={onEnableMedia}>
-            Enable camera and mic
+      <div className="prereq-grid">
+        <section className="prereq-card">
+          <h2>Interview Instructions</h2>
+          <div className="instruction-video">
+            <VideoTile stream={stream} videoRef={videoRef} />
+            {!stream ? <button className="primary compact" onClick={onEnableMedia}>Start Camera</button> : null}
+          </div>
+          {[
+            "Wait for the AI interviewer introduction before answering.",
+            "Use headphones or earphones for the best experience.",
+            "Answer every question to receive a useful analytics report.",
+            "Click Start Answer to record and End Answer when finished.",
+          ].map((item, index) => (
+            <div className="instruction-row" key={item}>
+              <span>{index + 1}</span>
+              {item}
+            </div>
+          ))}
+        </section>
+
+        <section className="prereq-card checklist-card">
+          <div className="section-heading-row">
+            <h2>Setup Checklist</h2>
+            <span className="check-count">{stream ? "6/6" : "4/6"}</span>
+          </div>
+          <div className="checklist">
+            {checklist.map((item, index) => (
+              <div className="check-row" key={item}>
+                <CheckCircle2 size={18} />
+                <span>{item}</span>
+                {index >= 2 && index <= 3 && !stream ? <small>Pending</small> : null}
+              </div>
+            ))}
+          </div>
+          {error ? <p className="error">{error}</p> : null}
+          <button className="primary waiting-continue" disabled={!stream} onClick={onStartInterview}>
+            Start Practice
           </button>
-        ) : null}
+          {!stream ? (
+            <button className="ghost waiting-continue" onClick={onEnableMedia}>
+              Enable camera and mic
+            </button>
+          ) : null}
+          <p className="muted-copy small">
+            {setup.interviewer} will interview you in {interviewerProfiles[setup.interviewer]?.accent ?? setup.accent}.
+          </p>
+        </section>
       </div>
     </section>
   );
@@ -1028,11 +1232,19 @@ function BrandBar() {
 function PhaseRail({ active = "Intro" }) {
   return (
     <div className="phase-rail">
-      {liveStages.map((stage) => (
-        <span className={stage === active ? "phase active" : "phase"} key={stage}>
-          {stage === "Intro" ? "done" : "dot"} {stage}
-        </span>
-      ))}
+      {liveStages.map((stage, index) => {
+        const activeIndex = liveStages.indexOf(active);
+        const isDone = index < activeIndex;
+        return (
+          <span
+            className={`${stage === active ? "phase active" : "phase"} ${isDone ? "done" : ""}`}
+            key={stage}
+          >
+            <span className="phase-dot" />
+            {stage}
+          </span>
+        );
+      })}
     </div>
   );
 }

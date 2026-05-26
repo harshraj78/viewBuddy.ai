@@ -63,11 +63,11 @@ class AIConversationEngine:
         if planned_move.get("question"):
             response = str(planned_move["question"])
             if personality == "FAANG pressure":
-                response = f"Let us raise the bar here. {response}"
+                response = f"Good, I am going to raise the bar a bit. {response}"
             elif personality == "Strict":
-                response = f"Good, now give me the exact reasoning. {response}"
+                response = f"I am going to hold you to the implementation detail here. {response}"
             elif personality == "Friendly":
-                response = f"That is a good start. {response}"
+                response = f"That direction makes sense. {response}"
             for chunk in self._chunk_text(response):
                 await asyncio.sleep(0.05)
                 yield chunk
@@ -135,16 +135,16 @@ class AIConversationEngine:
 
         if any(response.lower()[:45] in question for question in recent_interviewer_questions):
             response = (
-                "Let us go one level deeper. What was the hardest failure case, "
+                "Let us shift from the happy path. What was the hardest failure case, "
                 "and how would you detect it in production?"
             )
 
         if personality == "FAANG pressure":
-            response = f"Be specific and keep it structured. {response}"
+            response = f"Keep it tight and specific. {response}"
         elif personality == "Strict":
-            response = f"I want a precise answer. {response}"
+            response = f"I am looking for the exact reasoning. {response}"
         elif personality == "Friendly":
-            response = f"That is a good start. {response}"
+            response = f"That is a reasonable start. {response}"
 
         for chunk in self._chunk_text(response):
             await asyncio.sleep(0.05)

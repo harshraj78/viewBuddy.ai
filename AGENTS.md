@@ -37,6 +37,10 @@ This file tracks project progress, architecture decisions, learning notes, bugs,
 - Resume memory strengthened so the backend planner derives skills and project hints from resume context.
 - Realtime interviewer orchestration hardened with a backend generation lock, explicit turn-state tracking, and final-transcript-only AI generation.
 - Coding interview flow now starts from DSA-style approach explanation and includes a basic code editor plus test runner.
+- Candidate-facing flow now includes a role/use-case landing page, detailed interview setup, prerequisite checklist, and Remasto/MockAI-inspired interview progression.
+- Browser TTS now selects a closer matching voice/accent when the browser exposes Indian, US, or British English voices.
+- Interviewer prompt contract tightened so AI responses follow a human-style turn: specific acknowledgement, short bridge, and one targeted follow-up.
+- Local-only private interview-prep guide created for resume/project explanation without committing it to GitHub.
 - Product vision defined.
 - High-level architecture documented.
 - Database and API design drafted.
@@ -161,6 +165,8 @@ MVP must be video-based. Streamlit can remain useful for quick internal dashboar
 - Add local model health endpoint and frontend indicator for local LLM availability.
 - Persist live interview sessions to PostgreSQL before scaling beyond single-instance deployment.
 - Improve AI smoothness with incremental transcript events, interruption handling, and better TTS voice selection.
+- Replace browser TTS with a premium-grade voice provider for more realistic accents when budget allows.
+- Turn the private interview-prep notes into a personal study checklist outside the repository if needed.
 - Implement question generation and answer evaluation endpoints.
 - Build the production candidate-facing video interview MVP.
 - Add API and service tests.

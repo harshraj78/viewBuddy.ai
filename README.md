@@ -16,9 +16,10 @@ ViewBuddy.ai solves this by simulating a live AI interviewer that:
 
 ## Features
 
-- MockAI-style interview setup with role, difficulty, interviewer personality, accent, and company style
+- Role/use-case landing page with search, role cards, and a recruiter-friendly product flow
+- Remasto/MockAI-inspired interview detail setup with resume upload, round selection, difficulty, duration, interviewer choice, and profile context
 - Single resume upload input for personalization instead of noisy manual profile fields
-- Waiting room with camera and microphone checks
+- Prerequisite waiting room with camera/microphone checks, interview instructions, and setup checklist
 - Live video interview screen with candidate panel, AI interviewer panel, timer, phase rail, interrupt control, and compact transcript
 - Responsive light and dark mode frontend
 - Browser SpeechRecognition for zero-cost speech-to-text
@@ -26,7 +27,7 @@ ViewBuddy.ai solves this by simulating a live AI interviewer that:
 - FastAPI WebSocket orchestration for live transcript deltas, final answers, AI response chunks, follow-up questions, and interview state transitions
 - Stateful interview brain that tracks strengths, weak areas, answered topics, technologies, confidence, depth, and repetition
 - Gemini/local/fallback model router for AI question planning and follow-up generation
-- Resume/skills/project-aware personalization inputs
+- Resume-aware personalization with derived skills/project hooks for stronger interviewer memory
 - Resume-context memory that derives likely technologies and project hooks for interview questions
 - Feedback report with communication, technical, behavioral, replay, and improvement suggestions
 - Separate screens for coding round, system design round, and final report
