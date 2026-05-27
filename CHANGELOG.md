@@ -8,6 +8,7 @@ The format follows Keep a Changelog principles, and this project aims to use sem
 
 ### Added
 
+- Five-minute interview session validation coverage.
 - Interview generation lock and turn-state tracking to prevent overlapping AI responses.
 - Coding interview mode with approach-first DSA prompts and an in-browser code runner showing passed, failed, and runtime-error results.
 - Initial product architecture and roadmap.
@@ -60,6 +61,9 @@ The format follows Keep a Changelog principles, and this project aims to use sem
 
 ### Changed
 
+- Live interview timer now counts down from the selected setup duration instead of using a hardcoded display.
+- Live interview controls now only show working actions; coding/system-design entry points stay in their dedicated round screens.
+- Browser speech recognition now accumulates finalized transcript segments instead of replacing answer text on every result event.
 - Partial transcript deltas now update live memory only; AI responses are generated only from finalized answers.
 - Frontend mic controls now block recording while the interviewer is speaking or preparing a response.
 - Follow-up streaming now reuses one message id so the final question can replace the progressive buffer.
@@ -87,6 +91,8 @@ The format follows Keep a Changelog principles, and this project aims to use sem
 
 ### Fixed
 
+- Fixed backend validation rejecting the free 5-minute interview duration selected in the frontend.
+- Wired candidate camera toggle and removed nonfunctional live-room camera/interview navigation controls.
 - Improved light/dark theme contrast for native selects, dropdown options, form controls, captions, and interview panels.
 - Prevented duplicate transcript WebSocket events from generating duplicate follow-up questions.
 - Prevented overlapping browser speech synthesis and microphone recognition during live interviews.

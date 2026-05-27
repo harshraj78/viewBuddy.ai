@@ -64,6 +64,25 @@ def test_live_interview_session_flow_accepts_transcript(monkeypatch) -> None:
     assert report["replay"][0]["question_id"] == question["id"]
 
 
+def test_live_interview_accepts_five_minute_practice(monkeypatch) -> None:
+    monkeypatch.setattr(settings, "interview_llm_provider", "fallback")
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/v1/live-interviews/sessions",
+        json={
+            "target_role": "AI Engineer",
+            "mode": "technical",
+            "difficulty": "beginner",
+            "interview_duration_minutes": 5,
+            "question_count": 3,
+        },
+    )
+
+    assert response.status_code == 201
+    assert response.json()["status"] == "created"
+
+
 def test_live_transcript_buffer_prefers_longer_interim(monkeypatch) -> None:
     monkeypatch.setattr(settings, "interview_llm_provider", "fallback")
     service = LiveInterviewService()

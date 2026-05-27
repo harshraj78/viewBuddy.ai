@@ -7,10 +7,8 @@ import {
   CheckCircle2,
   CircleStop,
   Clock3,
-  Code2,
   FileText,
   Hand,
-  LayoutTemplate,
   Mic,
   Moon,
   Play,
@@ -45,13 +43,6 @@ const roleLibrary = [
 ];
 const roleTabs = ["Role Based", "Company Based", "JD Based", "Resume Toolkit", "Create Your Own"];
 const experiences = ["Fresher", "Experienced", "Intern"];
-const interviewTypes = [
-  "Full Interview (45 mins)",
-  "Technical",
-  "Coding Interview",
-  "HR",
-  "System Design",
-];
 const companyStyles = ["FAANG", "Startup", "Indian Product"];
 const interviewers = ["Payal", "Emma", "John", "Kapil"];
 const interviewerProfiles = {
@@ -123,7 +114,11 @@ function App() {
   const isSubmittingTranscriptRef = useRef(false);
   const isAwaitingAiResponseRef = useRef(false);
   const transcriptStartedAtRef = useRef(null);
+  const finalTranscriptRef = useRef("");
+  const interimTranscriptRef = useRef("");
   const lastTranscriptDeltaAtRef = useRef(0);
+  const interviewEndsAtRef = useRef(null);
+  const timerExpiredRef = useRef(false);
   const processedSocketMessagesRef = useRef(new Set());
   const [screen, setScreen] = useState("landing");
   const [stream, setStream] = useState(null);
@@ -136,7 +131,9 @@ function App() {
   const [isRecording, setIsRecording] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isCameraOn, setIsCameraOn] = useState(false);
   const [isAwaitingAiResponse, setIsAwaitingAiResponse] = useState(false);
+  const [remainingSeconds, setRemainingSeconds] = useState(300);
   const [transcriptOpen, setTranscriptOpen] = useState(false);
   const [voiceMessage, setVoiceMessage] = useState("");
   const [streamedAiText, setStreamedAiText] = useState("");
@@ -148,7 +145,7 @@ function App() {
   const [setup, setSetup] = useState({
     role: "AI Engineer",
     experience: "Fresher",
-    interviewType: "Full Interview (45 mins)",
+    interviewType: "Technical",
     companyStyle: "Indian Product",
     interviewer: "John",
     personality: "Easy Going",
@@ -199,6 +196,27 @@ function App() {
     document.documentElement.dataset.theme = theme;
     localStorage.setItem("viewbuddy-theme", theme);
   }, [theme]);
+
+  useEffect(() => {
+    if (!["live", "coding", "system"].includes(screen) || !interviewEndsAtRef.current) {
+      return undefined;
+    }
+
+    const intervalId = window.setInterval(() => {
+      const secondsLeft = Math.max(
+        0,
+        Math.ceil((interviewEndsAtRef.current - Date.now()) / 1000),
+      );
+      setRemainingSeconds(secondsLeft);
+      if (secondsLeft === 0 && !timerExpiredRef.current) {
+        timerExpiredRef.current = true;
+        setVoiceMessage("Time is up. Moving to feedback.");
+        enterReport();
+      }
+    }, 1000);
+
+    return () => window.clearInterval(intervalId);
+  }, [screen]);
 
   useEffect(() => {
     return () => {
@@ -314,10 +332,25 @@ function App() {
         audio: true,
       });
       setStream(mediaStream);
+      setIsCameraOn(true);
       setStatus("Camera and microphone ready");
     } catch {
       setError("Camera and microphone permission is required for the video interview.");
     }
+  }
+
+  function toggleCamera() {
+    if (!stream) {
+      setError("Enable camera and microphone first.");
+      return;
+    }
+    const videoTracks = stream.getVideoTracks();
+    const nextState = !isCameraOn;
+    videoTracks.forEach((track) => {
+      track.enabled = nextState;
+    });
+    setIsCameraOn(nextState);
+    setVoiceMessage(nextState ? "Camera is on." : "Camera is off.");
   }
 
   async function startInterview() {
@@ -340,15 +373,18 @@ function App() {
           candidate_skills: [],
           project_highlights: [],
           resume_summary: buildResumeContext(setup),
-          question_count: 5,
+          question_count: setup.durationMinutes <= 5 ? 3 : 5,
         }),
       });
       if (!response.ok) throw new Error("Could not create interview session");
       const createdSession = await response.json();
       setSession(createdSession);
+      interviewEndsAtRef.current = Date.now() + setup.durationMinutes * 60 * 1000;
+      timerExpiredRef.current = false;
+      setRemainingSeconds(setup.durationMinutes * 60);
       setStatus("Interview started");
-      await requestNextQuestion(createdSession.session_id);
       connectInterviewSocket(createdSession.session_id);
+      await requestNextQuestion(createdSession.session_id);
       if (normalizeInterviewMode(setup.interviewType) === "system_design") {
         setScreen("system");
       } else if (normalizeInterviewMode(setup.interviewType) === "dsa") {
@@ -399,14 +435,7 @@ function App() {
     }
 
     if (isRecording) {
-      isRecordingRef.current = false;
-      mediaRecorderRef.current?.stop();
-      recognitionRef.current?.stop();
-      recognitionRef.current = null;
-      setIsRecording(false);
-      setIsListening(false);
-      setStatus("Processing answer");
-      submitTranscript(answerTextRef.current);
+      finishCandidateAnswer();
       return;
     }
 
@@ -420,14 +449,34 @@ function App() {
       return;
     }
 
+    startCandidateRecording();
+  }
+
+  function startCandidateRecording() {
     const recorder = new MediaRecorder(stream);
     mediaRecorderRef.current = recorder;
     recorder.start();
     transcriptStartedAtRef.current = Date.now();
+    finalTranscriptRef.current = "";
+    interimTranscriptRef.current = "";
+    updateAnswerText("");
     isRecordingRef.current = true;
     startSpeechRecognition();
     setIsRecording(true);
     setStatus("Recording answer");
+  }
+
+  function finishCandidateAnswer() {
+    isRecordingRef.current = false;
+    mediaRecorderRef.current?.stop();
+    recognitionRef.current?.stop();
+    recognitionRef.current = null;
+    setIsRecording(false);
+    setIsListening(false);
+    setStatus("Processing answer");
+    window.setTimeout(() => {
+      submitTranscript(answerTextRef.current);
+    }, 250);
   }
 
   function interruptInterviewer() {
@@ -439,14 +488,7 @@ function App() {
     isSpeakingRef.current = false;
     setIsSpeaking(false);
     if (!isRecordingRef.current && !isAwaitingAiResponseRef.current) {
-      const recorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = recorder;
-      recorder.start();
-      transcriptStartedAtRef.current = Date.now();
-      isRecordingRef.current = true;
-      startSpeechRecognition();
-      setIsRecording(true);
-      setStatus("Recording answer");
+      startCandidateRecording();
     }
   }
 
@@ -473,17 +515,19 @@ function App() {
       if (isSpeakingRef.current || isAwaitingAiResponseRef.current) {
         return;
       }
-      let finalTranscript = "";
+      let nextFinalTranscript = finalTranscriptRef.current;
       let interimTranscript = "";
-      for (let index = 0; index < event.results.length; index += 1) {
+      for (let index = event.resultIndex; index < event.results.length; index += 1) {
         const result = event.results[index];
         if (result.isFinal) {
-          finalTranscript += `${result[0].transcript} `;
+          nextFinalTranscript = `${nextFinalTranscript} ${result[0].transcript}`.trim();
         } else {
           interimTranscript += `${result[0].transcript} `;
         }
       }
-      const transcript = `${finalTranscript}${interimTranscript}`.trim();
+      finalTranscriptRef.current = nextFinalTranscript;
+      interimTranscriptRef.current = interimTranscript.trim();
+      const transcript = `${nextFinalTranscript} ${interimTranscript}`.trim();
       updateAnswerText(transcript);
       sendLiveTranscriptDelta(transcript);
     };
@@ -495,7 +539,7 @@ function App() {
       setIsListening(false);
       recognitionRef.current = null;
       if (isRecordingRef.current && !isSpeakingRef.current) {
-        setVoiceMessage("Speech recognition restarted.");
+        setVoiceMessage("Listening resumed.");
         window.setTimeout(() => {
           if (isRecordingRef.current && !isSpeakingRef.current && !recognitionRef.current) {
             startSpeechRecognition();
@@ -585,7 +629,13 @@ function App() {
       typeof transcriptOverride === "string"
         ? transcriptOverride.trim()
         : answerTextRef.current.trim();
-    if (!activeSession || !activeQuestion || !transcript) return;
+    if (!activeSession || !activeQuestion) return;
+    if (!transcript) {
+      setStatus("Answering");
+      setVoiceMessage("I did not catch an answer. Try again or type it in the transcript box.");
+      setTranscriptOpen(true);
+      return;
+    }
     if (isSubmittingTranscriptRef.current || isAwaitingAiResponseRef.current) return;
     isSubmittingTranscriptRef.current = true;
     isAwaitingAiResponseRef.current = true;
@@ -750,6 +800,7 @@ function App() {
     websocketRef.current?.close();
     recognitionRef.current?.stop();
     window.speechSynthesis?.cancel();
+    interviewEndsAtRef.current = null;
     isRecordingRef.current = false;
     isSpeakingRef.current = false;
     isAwaitingAiResponseRef.current = false;
@@ -813,10 +864,12 @@ function App() {
           question={question}
           setup={setup}
           answerText={answerText}
+          remainingSeconds={remainingSeconds}
           transcriptOpen={transcriptOpen}
           isRecording={isRecording}
           isListening={isListening}
           isSpeaking={isSpeaking}
+          isCameraOn={isCameraOn}
           voiceMessage={voiceMessage}
           streamedAiText={streamedAiText}
           conversationMessages={conversationMessages}
@@ -824,11 +877,9 @@ function App() {
           onToggleTranscript={() => setTranscriptOpen((current) => !current)}
           onAnswerText={updateAnswerText}
           onToggleRecording={toggleRecording}
+          onToggleCamera={toggleCamera}
           onSpeakQuestion={() => speakQuestion()}
           onSubmitTranscript={submitTranscript}
-          onNextQuestion={() => requestNextQuestion()}
-          onCodingRound={() => setScreen("coding")}
-          onSystemRound={() => setScreen("system")}
           onLeave={enterReport}
           onInterrupt={interruptInterviewer}
         />
@@ -849,6 +900,8 @@ function App() {
             updateAnswerText("");
             setConversationMessages([]);
             setStreamedAiText("");
+            setRemainingSeconds(setup.durationMinutes * 60);
+            timerExpiredRef.current = false;
             setScreen("setup");
           }}
         />
@@ -858,13 +911,19 @@ function App() {
 }
 
 function normalizeInterviewMode(value) {
-  if (value === "Full Interview (45 mins)") return "technical";
   if (value === "Coding Interview") return "dsa";
   return value.toLowerCase().replace(" ", "_");
 }
 
 function selectedInterviewerName(setup) {
   return setup.interviewer || "John";
+}
+
+function formatDuration(totalSeconds) {
+  const safeSeconds = Math.max(0, totalSeconds ?? 0);
+  const minutes = Math.floor(safeSeconds / 60);
+  const seconds = safeSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
 function accentToLang(accent) {
@@ -877,9 +936,11 @@ function selectVoiceForAccent(accent) {
   if (!window.speechSynthesis?.getVoices) return null;
   const voices = window.speechSynthesis.getVoices();
   const preferredLang = accentToLang(accent);
+  const naturalVoicePattern = /natural|neural|online|google|microsoft|zira|aria|jenny|sonia|female/i;
   return (
-    voices.find((voice) => voice.lang === preferredLang && /female|neural|natural/i.test(voice.name))
+    voices.find((voice) => voice.lang === preferredLang && naturalVoicePattern.test(voice.name))
     || voices.find((voice) => voice.lang === preferredLang)
+    || voices.find((voice) => voice.lang?.startsWith(preferredLang.slice(0, 2)) && naturalVoicePattern.test(voice.name))
     || voices.find((voice) => voice.lang?.startsWith(preferredLang.slice(0, 2)))
     || null
   );
@@ -1255,10 +1316,12 @@ function LiveInterview({
   setup,
   question,
   answerText,
+  remainingSeconds,
   transcriptOpen,
   isRecording,
   isListening,
   isSpeaking,
+  isCameraOn,
   voiceMessage,
   streamedAiText,
   conversationMessages,
@@ -1266,11 +1329,9 @@ function LiveInterview({
   onToggleTranscript,
   onAnswerText,
   onToggleRecording,
+  onToggleCamera,
   onSpeakQuestion,
   onSubmitTranscript,
-  onNextQuestion,
-  onCodingRound,
-  onSystemRound,
   onLeave,
   onInterrupt,
 }) {
@@ -1279,7 +1340,7 @@ function LiveInterview({
       <BrandBar />
       <div className="live-topbar">
         <PhaseRail active={question?.question_type === "follow_up" ? "Clarify" : "Intro"} />
-        <div className="timer-pill"><Clock3 size={18} />44:39</div>
+        <div className="timer-pill"><Clock3 size={18} />{formatDuration(remainingSeconds)}</div>
       </div>
 
       <div className="interview-grid">
@@ -1292,7 +1353,9 @@ function LiveInterview({
               <button className="round-danger" onClick={onToggleRecording}>
                 {isRecording ? <CircleStop size={18} /> : <Mic size={18} />}
               </button>
-              <button className="round-ghost"><Camera size={18} /></button>
+              <button className="round-ghost" onClick={onToggleCamera}>
+                {isCameraOn ? <Camera size={18} /> : <CameraOff size={18} />}
+              </button>
             </div>
           </div>
         </div>
@@ -1306,7 +1369,6 @@ function LiveInterview({
               <Hand size={20} />
               Click to Interrupt
             </button>
-            <button className="round-light"><CameraOff size={20} /></button>
           </div>
         </div>
       </div>
@@ -1326,10 +1388,7 @@ function LiveInterview({
         <h2>{question?.question_text ?? "Interview complete. You can leave for feedback."}</h2>
         <div className="question-actions">
           <button className="ghost compact" onClick={onSpeakQuestion}><Volume2 size={16} />Repeat</button>
-          <button className="secondary compact" onClick={onSubmitTranscript}><Send size={16} />Submit answer</button>
-          <button className="ghost compact" onClick={onNextQuestion}><Play size={16} />Next</button>
-          <button className="ghost compact" onClick={onCodingRound}><Code2 size={16} />Coding</button>
-          <button className="ghost compact" onClick={onSystemRound}><LayoutTemplate size={16} />Design</button>
+          <button className="secondary compact" onClick={() => onSubmitTranscript()}><Send size={16} />Submit answer</button>
           <button className="danger compact" onClick={onLeave}>Leave</button>
           {voiceMessage ? <span>{voiceMessage}</span> : null}
         </div>

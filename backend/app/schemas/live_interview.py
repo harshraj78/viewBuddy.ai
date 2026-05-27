@@ -63,7 +63,7 @@ class StartLiveInterviewRequest(BaseModel):
     interviewer_name: str = Field(default="Sarah", min_length=1, max_length=80)
     interviewer_persona: str = Field(default="Basic Interviewer", max_length=120)
     interviewer_accent: str = Field(default="US American", max_length=80)
-    interview_duration_minutes: int = Field(default=45, ge=10, le=120)
+    interview_duration_minutes: int = Field(default=45, ge=5, le=120)
     resume_id: UUID | None = None
     candidate_skills: list[str] = Field(default_factory=list, max_length=12)
     project_highlights: list[str] = Field(default_factory=list, max_length=8)

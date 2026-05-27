@@ -41,6 +41,9 @@ This file tracks project progress, architecture decisions, learning notes, bugs,
 - Browser TTS now selects a closer matching voice/accent when the browser exposes Indian, US, or British English voices.
 - Interviewer prompt contract tightened so AI responses follow a human-style turn: specific acknowledgement, short bridge, and one targeted follow-up.
 - Local-only private interview-prep guide created for resume/project explanation without committing it to GitHub.
+- Five-minute free interview duration now works through backend validation and the live-room timer.
+- Live-room controls simplified so coding/system-design are only entered through their selected round flows, not random buttons during a technical interview.
+- Speech recognition transcript assembly improved to preserve finalized answer segments during the browser STT loop.
 - Product vision defined.
 - High-level architecture documented.
 - Database and API design drafted.
@@ -166,6 +169,7 @@ MVP must be video-based. Streamlit can remain useful for quick internal dashboar
 - Persist live interview sessions to PostgreSQL before scaling beyond single-instance deployment.
 - Improve AI smoothness with incremental transcript events, interruption handling, and better TTS voice selection.
 - Replace browser TTS with a premium-grade voice provider for more realistic accents when budget allows.
+- Evaluate WebRTC only for real media streaming/screen sharing; keep WebSockets for Gemini text orchestration in the zero-cost MVP.
 - Turn the private interview-prep notes into a personal study checklist outside the repository if needed.
 - Implement question generation and answer evaluation endpoints.
 - Build the production candidate-facing video interview MVP.

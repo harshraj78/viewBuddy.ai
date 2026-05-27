@@ -21,6 +21,7 @@ ViewBuddy.ai solves this by simulating a live AI interviewer that:
 - Single resume upload input for personalization instead of noisy manual profile fields
 - Prerequisite waiting room with camera/microphone checks, interview instructions, and setup checklist
 - Live video interview screen with candidate panel, AI interviewer panel, timer, phase rail, interrupt control, and compact transcript
+- Selected interview duration controls the live-room countdown, including the free 5-minute practice mode
 - Responsive light and dark mode frontend
 - Browser SpeechRecognition for zero-cost speech-to-text
 - Browser speechSynthesis for zero-cost AI interviewer voice
@@ -110,6 +111,8 @@ GET /live-interviews/sessions/{id}/report
 ```
 
 Key design decision: the live interview screen stays minimal. Analytics, scores, and charts are intentionally moved to the final feedback report so the round feels like a real interview.
+
+Realtime note: the zero-cost MVP uses WebSockets for AI orchestration and browser APIs for voice. WebRTC is a future fit for true media streaming, screen sharing, and multi-party rooms, but Gemini text generation still needs an HTTPS/WebSocket backend orchestration layer.
 
 ## Screenshots
 
