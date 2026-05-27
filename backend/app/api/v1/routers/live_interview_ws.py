@@ -1,4 +1,3 @@
-import asyncio
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
@@ -150,18 +149,6 @@ async def _handle_transcript_final(
         live_interview_service.transition_runtime_state(session_id, InterviewRuntimeState.follow_up)
         live_interview_service.set_turn_state(session_id, InterviewTurnState.responding)
         await _send_state(websocket, InterviewRuntimeState.follow_up)
-
-        await _send_interviewer_text(
-            websocket,
-            next_move.acknowledgement,
-            message_role="acknowledgement",
-            metadata={
-                "move_type": next_move.move_type.value,
-                "rationale": next_move.rationale,
-                "should_interrupt": False,
-            },
-        )
-        await asyncio.sleep(0.35)
 
         chunks = []
         stream_message_id = str(uuid4())

@@ -120,6 +120,7 @@ function App() {
   const interviewEndsAtRef = useRef(null);
   const timerExpiredRef = useRef(false);
   const processedSocketMessagesRef = useRef(new Set());
+  const shouldAutoListenRef = useRef(false);
   const [screen, setScreen] = useState("landing");
   const [stream, setStream] = useState(null);
   const [session, setSession] = useState(null);
@@ -381,6 +382,7 @@ function App() {
       setSession(createdSession);
       interviewEndsAtRef.current = Date.now() + setup.durationMinutes * 60 * 1000;
       timerExpiredRef.current = false;
+      shouldAutoListenRef.current = true;
       setRemainingSeconds(setup.durationMinutes * 60);
       setStatus("Interview started");
       connectInterviewSocket(createdSession.session_id);
@@ -581,6 +583,18 @@ function App() {
       isSpeakingRef.current = false;
       setIsSpeaking(false);
       setVoiceMessage("Your turn to answer.");
+      if (
+        shouldAutoListenRef.current
+        && stream
+        && !isRecordingRef.current
+        && !isAwaitingAiResponseRef.current
+      ) {
+        window.setTimeout(() => {
+          if (!isRecordingRef.current && !isSpeakingRef.current && !isAwaitingAiResponseRef.current) {
+            startCandidateRecording();
+          }
+        }, 500);
+      }
       if (isRecordingRef.current && !recognitionRef.current) {
         window.setTimeout(() => {
           if (isRecordingRef.current && !isSpeakingRef.current && !recognitionRef.current) {
@@ -715,21 +729,14 @@ function App() {
         }
         if (!text) return;
         setStreamedAiText((current) => `${current} ${text}`.trim());
-        if (event.payload.message_id) {
-          appendStreamingMessage(
-            event.payload.message_id,
-            event.payload.speaker ?? "interviewer",
-            text,
-          );
-        }
       }
       if (event.type === "followup_question") {
         const followup = event.payload.question;
-        finalizeStreamingMessage(
-          event.payload.message_id,
-          "interviewer",
-          followup,
-        );
+        appendConversationMessage({
+          id: event.payload.message_id ?? event.payload.question_id,
+          speaker: "interviewer",
+          text: followup,
+        });
         setQuestion({
           id: event.payload.question_id,
           order_index: questionRef.current?.order_index ?? 0,
@@ -801,6 +808,7 @@ function App() {
     recognitionRef.current?.stop();
     window.speechSynthesis?.cancel();
     interviewEndsAtRef.current = null;
+    shouldAutoListenRef.current = false;
     isRecordingRef.current = false;
     isSpeakingRef.current = false;
     isAwaitingAiResponseRef.current = false;

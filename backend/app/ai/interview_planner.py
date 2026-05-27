@@ -116,6 +116,27 @@ class InterviewPlanner:
         ]
 
     def _opening_question(self, profile: InterviewProfile) -> tuple[str, str]:
+        if profile.mode == "dsa":
+            return (
+                "dsa_approach",
+                (
+                    "We will do a coding round. First, solve this problem conceptually: "
+                    "given an integer array nums and an integer target, return the indices "
+                    "of two numbers that add up to target. Before writing code, explain "
+                    "your brute force approach, optimized approach, edge cases, and complexity."
+                ),
+            )
+
+        if profile.mode == "system_design":
+            return (
+                "system_design",
+                (
+                    "We will do a system design round. Design a resume-aware mock interview "
+                    "platform for 10,000 daily users. Start with requirements, APIs, data model, "
+                    "realtime interview flow, and the first scaling bottleneck."
+                ),
+            )
+
         if profile.resume_summary:
             return (
                 "resume_deep_dive",

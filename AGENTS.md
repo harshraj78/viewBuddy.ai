@@ -44,6 +44,9 @@ This file tracks project progress, architecture decisions, learning notes, bugs,
 - Five-minute free interview duration now works through backend validation and the live-room timer.
 - Live-room controls simplified so coding/system-design are only entered through their selected round flows, not random buttons during a technical interview.
 - Speech recognition transcript assembly improved to preserve finalized answer segments during the browser STT loop.
+- Live interview now auto-listens after interviewer speech and no longer requires the candidate to click Interrupt to start answering.
+- Streaming AI chunks are kept out of transcript history until the final follow-up is complete.
+- Coding interview opening prompt now starts with DSA approach explanation instead of generic technical project discussion.
 - Product vision defined.
 - High-level architecture documented.
 - Database and API design drafted.
@@ -170,6 +173,7 @@ MVP must be video-based. Streamlit can remain useful for quick internal dashboar
 - Improve AI smoothness with incremental transcript events, interruption handling, and better TTS voice selection.
 - Replace browser TTS with a premium-grade voice provider for more realistic accents when budget allows.
 - Evaluate WebRTC only for real media streaming/screen sharing; keep WebSockets for Gemini text orchestration in the zero-cost MVP.
+- Add real resume parsing plus pgvector retrieval before fine-tuning so the model receives grounded candidate context.
 - Turn the private interview-prep notes into a personal study checklist outside the repository if needed.
 - Implement question generation and answer evaluation endpoints.
 - Build the production candidate-facing video interview MVP.

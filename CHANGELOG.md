@@ -61,6 +61,10 @@ The format follows Keep a Changelog principles, and this project aims to use sem
 
 ### Changed
 
+- Live interview now auto-starts candidate listening after interviewer speech, removing the need to use Interrupt as a workaround.
+- Streaming AI chunks now update the temporary caption only; the transcript receives one final interviewer message per turn.
+- Coding interview opening question now uses a DSA approach-first prompt instead of the generic technical project prompt.
+- Backend follow-up streaming no longer emits a separate acknowledgement event before the LLM response.
 - Live interview timer now counts down from the selected setup duration instead of using a hardcoded display.
 - Live interview controls now only show working actions; coding/system-design entry points stay in their dedicated round screens.
 - Browser speech recognition now accumulates finalized transcript segments instead of replacing answer text on every result event.
