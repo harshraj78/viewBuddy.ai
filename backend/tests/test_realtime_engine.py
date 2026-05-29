@@ -1,6 +1,7 @@
 import pytest
 
 from app.ai.conversation import AIConversationEngine
+from app.api.v1.routers.live_interview_ws import _ensure_complete_question
 from app.schemas.live_interview import InterviewRuntimeState
 from app.services.interview_state_machine import interview_state_machine
 
@@ -14,6 +15,15 @@ def test_interview_state_machine_allows_core_realtime_flow() -> None:
     state = interview_state_machine.transition(state, InterviewRuntimeState.completed)
 
     assert state == InterviewRuntimeState.completed
+
+
+def test_followup_guard_replaces_incomplete_model_fragment() -> None:
+    result = _ensure_complete_question(
+        "Sure, let's dive a",
+        fallback_question="What exact bottleneck did you handle first?",
+    )
+
+    assert result == "What exact bottleneck did you handle first?"
 
 
 @pytest.mark.asyncio

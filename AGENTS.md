@@ -47,6 +47,8 @@ This file tracks project progress, architecture decisions, learning notes, bugs,
 - Live interview now auto-listens after interviewer speech and no longer requires the candidate to click Interrupt to start answering.
 - Streaming AI chunks are kept out of transcript history until the final follow-up is complete.
 - Coding interview opening prompt now starts with DSA approach explanation instead of generic technical project discussion.
+- Added follow-up completion guard so incomplete LLM fragments cannot become the active question.
+- Live interview video grid constrained to stop candidate/interviewer panels from overlapping at wide-but-tight viewports.
 - Product vision defined.
 - High-level architecture documented.
 - Database and API design drafted.
@@ -174,6 +176,7 @@ MVP must be video-based. Streamlit can remain useful for quick internal dashboar
 - Replace browser TTS with a premium-grade voice provider for more realistic accents when budget allows.
 - Evaluate WebRTC only for real media streaming/screen sharing; keep WebSockets for Gemini text orchestration in the zero-cost MVP.
 - Add real resume parsing plus pgvector retrieval before fine-tuning so the model receives grounded candidate context.
+- Evaluate Whisper/faster-whisper or Groq Whisper as the next STT upgrade because browser SpeechRecognition is unstable for Hinglish and technical terms.
 - Turn the private interview-prep notes into a personal study checklist outside the repository if needed.
 - Implement question generation and answer evaluation endpoints.
 - Build the production candidate-facing video interview MVP.

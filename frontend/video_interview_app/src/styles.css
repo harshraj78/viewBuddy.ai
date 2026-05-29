@@ -1345,6 +1345,7 @@ pre {
 .mock-live {
   display: grid;
   gap: 16px;
+  overflow: hidden;
 }
 
 .live-topbar {
@@ -1366,8 +1367,15 @@ pre {
 
 .interview-grid {
   display: grid;
-  gap: 40px;
+  gap: clamp(16px, 2vw, 28px);
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.participant {
+  min-width: 0;
 }
 
 .participant h2 {
@@ -1377,15 +1385,17 @@ pre {
 
 .participant-video {
   align-items: center;
-  aspect-ratio: 16 / 6.6;
+  aspect-ratio: 16 / 7.2;
   background: var(--surface);
   border: 4px solid rgba(137, 47, 55, 0.72);
   border-radius: 18px;
   display: grid;
   min-height: 340px;
+  min-width: 0;
   overflow: hidden;
   place-items: center;
   position: relative;
+  width: 100%;
 }
 
 .participant-video .compact-video {

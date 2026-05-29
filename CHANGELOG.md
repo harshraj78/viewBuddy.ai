@@ -8,6 +8,7 @@ The format follows Keep a Changelog principles, and this project aims to use sem
 
 ### Added
 
+- Guardrail that replaces incomplete/non-question LLM follow-up fragments with the strategist's concrete fallback question.
 - Five-minute interview session validation coverage.
 - Interview generation lock and turn-state tracking to prevent overlapping AI responses.
 - Coding interview mode with approach-first DSA prompts and an in-browser code runner showing passed, failed, and runtime-error results.
@@ -95,6 +96,8 @@ The format follows Keep a Changelog principles, and this project aims to use sem
 
 ### Fixed
 
+- Fixed partial follow-up fragments such as "Sure, let's dive a" becoming the current interview question.
+- Fixed live interview video panel overlap by constraining the participant grid and video tile widths.
 - Fixed backend validation rejecting the free 5-minute interview duration selected in the frontend.
 - Wired candidate camera toggle and removed nonfunctional live-room camera/interview navigation controls.
 - Improved light/dark theme contrast for native selects, dropdown options, form controls, captions, and interview panels.

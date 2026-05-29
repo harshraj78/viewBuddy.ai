@@ -174,7 +174,8 @@ async def _handle_transcript_final(
                 message_id=stream_message_id,
             )
 
-        followup = " ".join(chunks).strip() or next_move.question
+        raw_followup = " ".join(chunks).strip()
+        followup = _ensure_complete_question(raw_followup, fallback_question=next_move.question)
         live_interview_service.append_memory(session_id, speaker="interviewer", message=followup)
         followup_question = live_interview_service.add_followup_question(
             session_id,
@@ -212,6 +213,34 @@ async def _complete_interview(websocket: WebSocket, session_id: UUID) -> None:
         session_id,
         InterviewRuntimeState.completed,
     )
+
+
+def _ensure_complete_question(response: str, *, fallback_question: str) -> str:
+    cleaned_response = " ".join(response.split())
+    cleaned_fallback = " ".join(fallback_question.split())
+    if not cleaned_response:
+        return cleaned_fallback
+
+    word_count = len(cleaned_response.split())
+    has_question = "?" in cleaned_response
+    ends_like_fragment = cleaned_response.lower().endswith(
+        (
+            " a",
+            " an",
+            " and",
+            " or",
+            " to",
+            " with",
+            " for",
+            " about",
+            " into",
+        )
+    )
+    if has_question and not ends_like_fragment:
+        return cleaned_response
+    if word_count <= 14 or ends_like_fragment:
+        return cleaned_fallback
+    return f"{cleaned_response} {cleaned_fallback}"
 
 
 async def _send_state(websocket: WebSocket, state: InterviewRuntimeState) -> None:
