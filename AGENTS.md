@@ -49,6 +49,7 @@ This file tracks project progress, architecture decisions, learning notes, bugs,
 - Coding interview opening prompt now starts with DSA approach explanation instead of generic technical project discussion.
 - Added follow-up completion guard so incomplete LLM fragments cannot become the active question.
 - Live interview video grid constrained to stop candidate/interviewer panels from overlapping at wide-but-tight viewports.
+- Live interview now auto-submits a candidate answer after sustained silence, while keeping manual submit as fallback.
 - Product vision defined.
 - High-level architecture documented.
 - Database and API design drafted.

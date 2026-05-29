@@ -8,6 +8,7 @@ The format follows Keep a Changelog principles, and this project aims to use sem
 
 ### Added
 
+- Silence-based answer auto-submit for live interviews, so candidates can stop speaking naturally instead of clicking submit.
 - Guardrail that replaces incomplete/non-question LLM follow-up fragments with the strategist's concrete fallback question.
 - Five-minute interview session validation coverage.
 - Interview generation lock and turn-state tracking to prevent overlapping AI responses.

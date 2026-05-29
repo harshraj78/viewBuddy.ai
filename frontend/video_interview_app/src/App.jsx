@@ -85,6 +85,8 @@ const durationOptions = [
   { label: "15 mins", minutes: 15, premium: true },
   { label: "30 mins", minutes: 30, premium: true },
 ];
+const AUTO_SUBMIT_SILENCE_MS = 3200;
+const AUTO_SUBMIT_MIN_WORDS = 5;
 
 const screenOrder = [
   "landing",
@@ -116,6 +118,8 @@ function App() {
   const transcriptStartedAtRef = useRef(null);
   const finalTranscriptRef = useRef("");
   const interimTranscriptRef = useRef("");
+  const answerSilenceTimerRef = useRef(null);
+  const lastTranscriptChangeAtRef = useRef(0);
   const lastTranscriptDeltaAtRef = useRef(0);
   const interviewEndsAtRef = useRef(null);
   const timerExpiredRef = useRef(false);
@@ -224,6 +228,7 @@ function App() {
       window.speechSynthesis?.cancel();
       recognitionRef.current?.stop();
       websocketRef.current?.close();
+      clearSilenceAutoSubmit();
     };
   }, []);
 
@@ -262,6 +267,39 @@ function App() {
   function updateAnswerText(value) {
     answerTextRef.current = value;
     setAnswerText(value);
+    scheduleSilenceAutoSubmit(value);
+  }
+
+  function scheduleSilenceAutoSubmit(transcript) {
+    window.clearTimeout(answerSilenceTimerRef.current);
+    if (!isRecordingRef.current || isSpeakingRef.current || isAwaitingAiResponseRef.current) {
+      return;
+    }
+
+    const cleanedTranscript = transcript.trim();
+    const wordCount = cleanedTranscript.split(/\s+/).filter(Boolean).length;
+    if (wordCount < AUTO_SUBMIT_MIN_WORDS) {
+      return;
+    }
+
+    lastTranscriptChangeAtRef.current = Date.now();
+    answerSilenceTimerRef.current = window.setTimeout(() => {
+      const silenceMs = Date.now() - lastTranscriptChangeAtRef.current;
+      if (
+        isRecordingRef.current
+        && !isSpeakingRef.current
+        && !isAwaitingAiResponseRef.current
+        && silenceMs >= AUTO_SUBMIT_SILENCE_MS - 150
+      ) {
+        setVoiceMessage("Silence detected. Submitting your answer.");
+        finishCandidateAnswer();
+      }
+    }, AUTO_SUBMIT_SILENCE_MS);
+  }
+
+  function clearSilenceAutoSubmit() {
+    window.clearTimeout(answerSilenceTimerRef.current);
+    answerSilenceTimerRef.current = null;
   }
 
   function appendConversationMessage(message) {
@@ -461,6 +499,8 @@ function App() {
     transcriptStartedAtRef.current = Date.now();
     finalTranscriptRef.current = "";
     interimTranscriptRef.current = "";
+    lastTranscriptChangeAtRef.current = 0;
+    clearSilenceAutoSubmit();
     updateAnswerText("");
     isRecordingRef.current = true;
     startSpeechRecognition();
@@ -469,6 +509,7 @@ function App() {
   }
 
   function finishCandidateAnswer() {
+    clearSilenceAutoSubmit();
     isRecordingRef.current = false;
     mediaRecorderRef.current?.stop();
     recognitionRef.current?.stop();
@@ -809,6 +850,7 @@ function App() {
     window.speechSynthesis?.cancel();
     interviewEndsAtRef.current = null;
     shouldAutoListenRef.current = false;
+    clearSilenceAutoSubmit();
     isRecordingRef.current = false;
     isSpeakingRef.current = false;
     isAwaitingAiResponseRef.current = false;
